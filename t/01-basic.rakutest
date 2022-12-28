@@ -1,0 +1,21 @@
+use v6;
+
+use Test;
+use Humming-Bird::Core;
+
+plan 4;
+
+my &cb = sub (Request $request, Response $response --> Response) {
+    $response.html('Hello World');
+}
+
+get('/', &cb);
+
+is routes{'/'}{GET}.path, '/', 'Is route path OK?';
+is routes{'/'}{GET}.callback.raku, &cb.raku, 'Is callback OK?';
+
+my $req = Request.new(path => '/');
+is routes{'/'}{GET}($req).headers{'Content-Type'}, 'text/html', 'Is response header content type OK?';
+is routes{'/'}{GET}($req).body, 'Hello World', 'Is response body OK?';
+
+# vim: expandtab shiftwidth=4

@@ -1,0 +1,36 @@
+{
+	"auth": "zef:rawleyfowler",
+	"authors": [
+		"Rawley Fowler"
+	],
+	"build-depends": [
+	],
+	"depends": [
+		"HTTP::Status"
+	],
+	"description": "A simple, and extensible Web Framework.",
+	"license": "MIT",
+	"name": "Humming-Bird::Core",
+	"perl": "6.d",
+	"provides": {
+    "Humming-Bird::HTTPServer": "lib/HTTPServer.rakumod",
+		"Humming-Bird::Core": "lib/Humming-Bird.rakumod"
+	},
+	"resources": [ ],
+	"source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
+	"support": {
+		"source": "https://github.com/rawleyfowler/Humming-Bird.git"
+	},
+	"tags": [
+		"Net",
+		"Sinatra",
+		"Web Framework",
+		"HTTP Server"
+	],
+	"test-depends": [
+		"Test",
+		"Test::When",
+		"Test::Notice"
+	],
+	"version": "0.0.1"
+}

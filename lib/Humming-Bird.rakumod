@@ -1,0 +1,252 @@
+=begin pod
+=head1 Humming-Bird::Core
+
+A simple imperative web framework. Similar to Opium (OCaml) and Express (JavaScript).
+Humming-Bird aims to provide a simple, straight-forward HTTP Application server.
+Humming-Bird is not designed to be exposed to the world-wide web without a reverse proxy,
+I recommend NGiNX. This is why TLS is not implemented.
+
+=head2 Exported subroutines
+
+=head3 get, post, put, patch, delete
+
+=for code
+    get('/home', -> $request, $response {
+      $response.html('<h1>Hello World</h1>');
+    });
+
+    post('/users', -> $request, $response {
+      my $text = sprintf("Hello: %s", $request.body);
+      $response.write($text); # Content type defaults to text/plain
+    });
+
+    delete ...
+    put ...
+    patch ...
+    head ...
+
+Register an HTTP route, and a C<Block> that takes a Request and a Response.
+It is expected that the route returns a valid C<Response>, in this case C<.html> returns
+the response object for easy chaining. There is no built in body parsers, so you'll have to
+convert bodies with another library, JSON::Fast is a good option for JSON!
+
+=head3 listen
+
+=for code
+    listen(8080);
+
+Start the server, after you've declared your routes. It will listen in a given port.
+
+=head3 routes
+
+=for code
+    routes();
+
+Returns a read-only version of the currently stored routes.
+
+=head3 HTTPMethod
+
+Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
+
+=end pod
+
+use v6;
+use strict;
+
+use HTTP::Status;
+use Humming-Bird::HTTPServer;
+
+unit module Humming-Bird::Core;
+
+### HTTP REQUEST/RESPONSE SECTION
+enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
+
+our $VERSION = '0.0.1';
+
+class HTTPAction {
+    has Map $.headers    = Hash.new;
+    has Str $.body is rw = "";
+
+    method header(Str $name, Str $value --> HTTPAction) {
+        $.headers{$name} = $value;
+        self;
+    }
+}
+
+class Request is HTTPAction is export {
+    has Str $.path is required;
+    has Map %.params = Map.new;
+    has Map %.query  = Map.new;
+
+    method param(Str $param --> Str) {
+        if %.params{$param}:exists {
+            return %.params{$param};
+        }
+
+        "";
+    }
+
+    method query(Str $query_param --> List) {
+        if %.query{$query_param}:exists {
+            %.query{$query_param};
+        }
+
+        ();
+    }
+
+    submethod encode(Str $raw_request --> Request) {
+        # TODO: Parse raw_request into new Request.
+    }
+}
+
+class Response is HTTPAction is export {
+    has HTTP::Status $.status is required;
+
+    method status(HTTP::Status $status --> Response) {
+        $.status = $status;
+        self;
+    }
+
+    method html(Str $body --> Response) {
+        self.write($body, 'text/html');
+    }
+
+    method json(Str $body --> Response) {
+        self.write($body, 'application/json');
+    }
+
+    method write(Str $body, Str $type = 'text/plain' --> Response) {
+        $.body = $body;
+        %.headers{'Content-Type'} = $type;
+        self;
+    }
+
+    method file(Str $file --> Response) {
+        $.body = $file.IO.slurp;
+        self;
+    }
+
+    method content_type(Str $type --> Response) {
+        %.headers{'Content-Type'} = $type;
+        self;
+    }
+
+    method decode(--> Str) {
+        my $out = sprintf("HTTP/1.1 %d %s\r\n", $.status.code, $.status);
+        $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
+        $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
+        for $.headers.pairs -> ($key, $value) {
+            $out ~= "$key: $value\r\n";
+        }
+        $out ~= sprintf("\r\n%s", $.body);
+    }
+}
+
+### ROUTING SECTION
+class Route is Callable {
+    has Str $.path;
+    has &.callback;
+
+    method CALL-ME(Request $req) {
+        my $res = Response.new(status => HTTP::Status(200));
+        my &call = &.callback();
+        &call($req, $res);
+    }
+}
+
+our %ROUTES            = Hash.new; # Should be un-modifiable after listen is called.
+our $PARAM_IDX         = ':';
+our $PARAM_PLACEHOLDER = '**';
+
+sub split_uri(Str $uri --> List) {
+    my @uri_parts = $uri.split('/', :skip-empty);
+
+    if $uri eq '/' {
+        @uri_parts[0] = '/';
+    } else {
+        @uri_parts.prepend('/');
+    }
+
+    @uri_parts.list;
+}
+
+sub delegate_route(Route $route, HTTPMethod $meth) {
+    die 'Route cannot be empty'  if $route.path.chars eq 0;
+    die sprintf("Invalid route: %s", $route.path) unless $route.path.contains('/');
+
+    my @uri_parts = split_uri($route.path);
+
+    my %loc := %ROUTES;
+    for @uri_parts -> Str $part {
+        my $t = $part;
+        if $part.contains($PARAM_IDX) {
+            unless %loc{$PARAM_PLACEHOLDER}:exists {
+                %loc{$PARAM_PLACEHOLDER} = Hash.new;
+                $t = $PARAM_PLACEHOLDER;
+            }
+        } else {
+            unless %loc{$part}:exists {
+                %loc{$part} = Hash.new;
+            }
+        }
+
+        %loc := %loc{$t};
+    }
+
+    %loc{$meth} = $route;
+}
+
+sub dispatch_request(Request $request --> Response) {
+    my @uri_parts = split_uri($request.path);
+    if @uri_parts.elems < 1 || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
+        return Response.new(status => HTTP::Status(400));
+    }
+
+    my %loc := %ROUTES;
+    for @uri_parts -> $uri {
+        %loc := %loc{$uri};
+    }
+
+    %loc{$request.method}($request);
+}
+
+sub get(Str $path, &callback) is export {
+    delegate_route(Route.new(path => $path, callback => &callback), GET);
+}
+
+sub put(Str $path, &callback) is export {
+    delegate_route(Route.new(path => $path, callback => &callback), PUT);
+}
+
+sub post(Str $path, &callback) is export {
+    delegate_route(Route.new(path => $path, callback => &callback), POST);
+}
+
+sub patch(Str $path, &callback) is export {
+    delegate_route(Route.new(path => $path, callback => &callback), PATCH);
+}
+
+sub delete(Str $path, &callback) is export {
+    delegate_route(Route.new(path => $path, callback => &callback), DELETE);
+}
+
+sub routes(--> Hash) is export {
+    %ROUTES.clone;
+}
+
+sub listen(Int $port) is export {
+    my $server = Humming-Bird::HTTPServer.new(port => $port);
+    $server.listen(-> $raw_request {
+        my $request = Request.encode($raw_request);
+        start {
+            dispatch_request($request).decode;
+            CATCH {
+                default {
+                    Response.new(status => HTTP::Status(500)).html('500 Internal Server Error').decode;
+                }
+            };
+        }
+    });
+}
+
+# vim: expandtab shiftwidth=4
