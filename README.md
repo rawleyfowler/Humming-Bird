@@ -19,6 +19,28 @@ listen(8080);
 
 # Navigate to localhost:8080!
 ```
+
+Simple JSON example:
+```raku
+use v6;
+
+use Humming-Bird::Core;
+
+my %users = Map.new('bob', '{ "name": "bob" }', 'joe', '{ "name": "joe" }');
+
+get('/users/:user', -> $request, $response {
+    my $user = $request.param('user');
+
+    if %users{$user}:exists {
+        $response.json(%users{$user});
+    } else {
+        $response.status(404);
+    }
+});
+
+listen(8080);
+```
+
 More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.
 
 ## Note
