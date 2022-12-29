@@ -4,6 +4,23 @@ Humming-Bird was inspired mainly by [Opium](https://github.com/rgrinberg/opium),
 things relatively simple, allowing the user to pull in things like templating engines,
 and ORM's on their own terms. Humming-Bird comes with what you need to quickly, and efficiently spin up REST API's, and static web-apps. To top it all off, Humming-Bird has very few dependencies, just Test, and [HTTPStatus](https://github.com/lizmat/HTTP-Status).
 
+## Examples
+Simple example:
+```raku
+use v6;
+
+use Humming-Bird::Core;
+
+get('/', -> $request, $response {
+    $response.html('<h1>Hello World</h1>');
+});
+
+listen(8080);
+
+# Navigate to localhost:8080!
+```
+More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.
+
 ## Things to keep in mind
 - This project is in active development, things will break.
 - You may run into bugs.
