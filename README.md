@@ -21,6 +21,9 @@ listen(8080);
 ```
 More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.
 
+## Note
+Humming-Bird is not designed to be exposed to the internet directly. You should hide Humming-Bird behind a reverse-proxy like NGiNX or httpd.
+
 ## Things to keep in mind
 - This project is in active development, things will break.
 - You may run into bugs.
