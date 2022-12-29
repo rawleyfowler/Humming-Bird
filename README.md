@@ -18,11 +18,11 @@ zef -v install https://github.com/rawleyfowler/Humming-Bird.git
 
 ## Contributing
 All contributions are encouraged! I know the Raku community is amazing, so I hope to see
-some people get involved :D.
+some people get involved :D
 
 Please make sure you squash your branch, and name it accordingly before it gets merged!
 
 ## License
-Humming-Bird is available under the Apache-2.0 License, you can view the license in the `LICENSE` file
-at the root of the project. For more information about the Apache-2.0 License, please click
-[here](https://www.apache.org/licenses/LICENSE-2.0.html).
+Humming-Bird is available under the MIT, you can view the license in the `LICENSE` file
+at the root of the project. For more information about the MIT, please click
+[here](https://mit-license.org/).
