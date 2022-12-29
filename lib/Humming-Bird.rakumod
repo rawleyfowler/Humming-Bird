@@ -61,6 +61,22 @@ unit module Humming-Bird::Core;
 ### HTTP REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
+sub http_method_of_str(Str $method --> HTTPMethod) {
+    given $method.lc {
+        when 'get' { GET; }
+        when 'post' { POST; }
+        when 'put' { PUT; }
+        when 'patch' { PATCH; }
+        when 'delete' { DELETE; }
+        when 'head' { HEAD; }
+        default { GET; }
+    }
+}
+
+sub decode_headers(Str $header_block --> Map) {
+    Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
+}
+
 our $VERSION = '0.0.1';
 
 class HTTPAction {
@@ -75,15 +91,17 @@ class HTTPAction {
 
 class Request is HTTPAction is export {
     has Str $.path is required;
-    has Map %.params = Map.new;
-    has Map %.query  = Map.new;
+    has HTTPMethod $.method is required;
+    has Str $.version is required;
+    has Hash %.params = Hash.new;
+    has Hash %.query  = Hash.new;
 
     method param(Str $param --> Str) {
         if %.params{$param}:exists {
             return %.params{$param};
         }
 
-        "";
+        Nil;
     }
 
     method query(Str $query_param --> List) {
@@ -91,19 +109,44 @@ class Request is HTTPAction is export {
             %.query{$query_param};
         }
 
-        ();
+        Nil;
     }
 
     submethod encode(Str $raw_request --> Request) {
-        # TODO: Parse raw_request into new Request.
+        # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
+        my @lines = $raw_request.lines;
+        my ($method_raw, $path, $version) = @lines.head.split(' ');
+        my $method = http_method_of_str($method_raw);
+
+        # Find query params
+        my %query;
+        if @lines[0] ~~ m:g/<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
+            %query := Map.new($<>.map({ .split('=') }).flat);
+        }
+
+        # Break the request into the body portion, and the upper headers/request line portion
+        my @split_request = $raw_request.split("\r\n\r\n", :skip-empty);
+        my $body = "";
+
+        # Lose the request line and parse an assoc list of headers.
+        my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map({ .split(':', :skip-empty).map(*.chomp.trim) }).flat);
+
+        # Body should only exist if either of these headers are present.
+        if (%headers{'Content-Length'}:exists) || (%headers{'Transfer-Encoding'}:exists) {
+            $body = @split_request[1] || "";
+        }
+
+        my $request = Request.new(:$path, :$method, :$version, :%query, :$body, :%headers);
+
+        $request;
     }
 }
 
 class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
 
-    method status(HTTP::Status $status --> Response) {
-        $.status = $status;
+    method status(Int $status --> Response) {
+        $.status = HTTP::Status($status);
         self;
     }
 
@@ -115,9 +158,9 @@ class Response is HTTPAction is export {
         self.write($body, 'application/json');
     }
 
-    method write(Str $body, Str $type = 'text/plain' --> Response) {
+    method write(Str $body, Str $content_type = 'text/plain' --> Response) {
         $.body = $body;
-        %.headers{'Content-Type'} = $type;
+        %.headers{'Content-Type'} = $content_type;
         self;
     }
 
@@ -132,11 +175,11 @@ class Response is HTTPAction is export {
     }
 
     method decode(--> Str) {
-        my $out = sprintf("HTTP/1.1 %d %s\r\n", $.status.code, $.status);
+        my $out = sprintf("HTTP/1.1 %d %s\r\n", $!status.code, $!status);
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
-        for $.headers.pairs -> ($key, $value) {
-            $out ~= "$key: $value\r\n";
+        for $.headers.pairs -> $pair { # TODO: There must be a nice way to destructure a pair.
+            $out ~= sprintf("%s: %s\r\n", $pair.key, $pair.value);
         }
         $out ~= sprintf("\r\n%s", $.body);
     }
@@ -154,7 +197,8 @@ class Route is Callable {
     }
 }
 
-our %ROUTES            = Hash.new; # Should be un-modifiable after listen is called.
+# TODO: Globals kind of suck, but they work here. Maybe we can improve this.
+our %ROUTES            = Hash.new; # TODO: Should be un-modifiable after listen is called.
 our $PARAM_IDX         = ':';
 our $PARAM_PLACEHOLDER = '**';
 
@@ -178,19 +222,11 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 
     my %loc := %ROUTES;
     for @uri_parts -> Str $part {
-        my $t = $part;
-        if $part.contains($PARAM_IDX) {
-            unless %loc{$PARAM_PLACEHOLDER}:exists {
-                %loc{$PARAM_PLACEHOLDER} = Hash.new;
-                $t = $PARAM_PLACEHOLDER;
-            }
-        } else {
-            unless %loc{$part}:exists {
-                %loc{$part} = Hash.new;
-            }
+        unless %loc{$part}:exists {
+            %loc{$part} = Hash.new;
         }
 
-        %loc := %loc{$t};
+        %loc := %loc{$part};
     }
 
     %loc{$meth} = $route;
@@ -198,36 +234,45 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
-    if @uri_parts.elems < 1 || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
+    if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
         return Response.new(status => HTTP::Status(400));
     }
 
     my %loc := %ROUTES;
+    my %params := Hash.new;
     for @uri_parts -> $uri {
+        my $possible_param = %loc.keys.first: *.path.starts-with(':');
+
+        if (not %loc{$uri}:exists) && (not $possible_param) {
+            return Response.new(status => HTTP::Status(404)).html('404 Not Found');
+        } elsif $possible_param {
+            %params{$possible_param.match(/\w+/).Str} = $uri;
+        }
+
         %loc := %loc{$uri};
     }
 
-    %loc{$request.method}($request);
+    %loc{$request.method}($request.clone(params => %params));
 }
 
 sub get(Str $path, &callback) is export {
-    delegate_route(Route.new(path => $path, callback => &callback), GET);
+    delegate_route(Route.new(:$path, :&callback), GET);
 }
 
 sub put(Str $path, &callback) is export {
-    delegate_route(Route.new(path => $path, callback => &callback), PUT);
+    delegate_route(Route.new(:$path, :&callback), PUT);
 }
 
 sub post(Str $path, &callback) is export {
-    delegate_route(Route.new(path => $path, callback => &callback), POST);
+    delegate_route(Route.new(:$path, :&callback), POST);
 }
 
 sub patch(Str $path, &callback) is export {
-    delegate_route(Route.new(path => $path, callback => &callback), PATCH);
+    delegate_route(Route.new(:$path, :&callback), PATCH);
 }
 
 sub delete(Str $path, &callback) is export {
-    delegate_route(Route.new(path => $path, callback => &callback), DELETE);
+    delegate_route(Route.new(:$path, :&callback), DELETE);
 }
 
 sub routes(--> Hash) is export {
@@ -235,16 +280,12 @@ sub routes(--> Hash) is export {
 }
 
 sub listen(Int $port) is export {
-    my $server = Humming-Bird::HTTPServer.new(port => $port);
+    my HTTPServer $server = HTTPServer.new(port => $port);
     $server.listen(-> $raw_request {
-        my $request = Request.encode($raw_request);
+        my Request $request = Request.encode($raw_request);
         start {
-            dispatch_request($request).decode;
-            CATCH {
-                default {
-                    Response.new(status => HTTP::Status(500)).html('500 Internal Server Error').decode;
-                }
-            };
+            my Bool $keep_alive = ($request.headers{'Connection'}:exists) && $request.headers{'Connection'} eq 'keep-alive';
+            List.new(dispatch_request($request).decode, $keep_alive);
         }
     });
 }

@@ -10,7 +10,7 @@
 	],
 	"description": "A simple, and extensible Web Framework.",
 	"license": "MIT",
-	"name": "Humming-Bird::Core",
+	"name": "Humming-Bird",
 	"perl": "6.d",
 	"provides": {
     "Humming-Bird::HTTPServer": "lib/HTTPServer.rakumod",
