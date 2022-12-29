@@ -8,7 +8,7 @@
 	"depends": [
 		"HTTP::Status"
 	],
-	"description": "A simple, and extensible Web Framework.",
+	"description": "A simple, composable Web Framework.",
 	"license": "MIT",
 	"name": "Humming-Bird",
 	"perl": "6.d",

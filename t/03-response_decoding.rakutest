@@ -11,7 +11,7 @@ my $simple_response = Response.new(status => HTTP::Status(200));
 
 ok $simple_response.decode, 'Does decode not die?';
 
-my %headers is Map = 'Content-Length', 10, 'Encoding', 'utf-8';
-my $simple_response_headers = Response.new(status => HTTP::Status(200), headers => %headers);
+my %headers = 'Content-Length', 10, 'Encoding', 'utf-8';
+my $simple_response_headers = Response.new(status => HTTP::Status(200), :%headers);
 
 ok $simple_response_headers.decode, 'Does decode with headers not die?';

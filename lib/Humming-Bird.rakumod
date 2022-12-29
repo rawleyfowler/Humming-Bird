@@ -80,11 +80,11 @@ sub decode_headers(Str $header_block --> Map) {
 our $VERSION = '0.0.1';
 
 class HTTPAction {
-    has Map $.headers    = Hash.new;
+    has %.headers is Hash;
     has Str $.body is rw = "";
 
     method header(Str $name, Str $value --> HTTPAction) {
-        $.headers{$name} = $value;
+        %.headers{$name} = $value;
         self;
     }
 }
@@ -93,20 +93,20 @@ class Request is HTTPAction is export {
     has Str $.path is required;
     has HTTPMethod $.method is required;
     has Str $.version is required;
-    has Hash %.params = Hash.new;
-    has Hash %.query  = Hash.new;
+    has %.params;
+    has %.query;
 
     method param(Str $param --> Str) {
-        if %.params{$param}:exists {
-            return %.params{$param};
+        if %!params{$param}:exists {
+            return %!params{$param};
         }
 
         Nil;
     }
 
-    method query(Str $query_param --> List) {
-        if %.query{$query_param}:exists {
-            %.query{$query_param};
+    method query(Str $query_param --> Str) {
+        if %!query{$query_param}:exists {
+            return %!query{$query_param};
         }
 
         Nil;
@@ -119,9 +119,10 @@ class Request is HTTPAction is export {
         my $method = http_method_of_str($method_raw);
 
         # Find query params
-        my %query;
+        my %query is Hash;
         if @lines[0] ~~ m:g/<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
-            %query := Map.new($<>.map({ .split('=') }).flat);
+            %query = Map.new($<>.map({ .split('=') }).flat);
+            $path = $path.split('?', :skip-empty)[0];
         }
 
         # Break the request into the body portion, and the upper headers/request line portion
@@ -129,7 +130,7 @@ class Request is HTTPAction is export {
         my $body = "";
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map({ .split(':', :skip-empty).map(*.chomp.trim) }).flat);
+        my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map(*.split(': ', :skip-empty)).flat);
 
         # Body should only exist if either of these headers are present.
         if (%headers{'Content-Length'}:exists) || (%headers{'Transfer-Encoding'}:exists) {
@@ -151,22 +152,21 @@ class Response is HTTPAction is export {
     }
 
     method html(Str $body --> Response) {
-        self.write($body, 'text/html');
+        $.write($body, 'text/html');
     }
 
     method json(Str $body --> Response) {
-        self.write($body, 'application/json');
+        $.write($body, 'application/json');
     }
 
-    method write(Str $body, Str $content_type = 'text/plain' --> Response) {
+    method write(Str $body, Str $content_type = 'text/plain', --> Response) {
         $.body = $body;
         %.headers{'Content-Type'} = $content_type;
         self;
     }
 
     method file(Str $file --> Response) {
-        $.body = $file.IO.slurp;
-        self;
+        $.write($file.IO.slurp || '', 'text/plain');
     }
 
     method content_type(Str $type --> Response) {
@@ -192,15 +192,13 @@ class Route is Callable {
 
     method CALL-ME(Request $req) {
         my $res = Response.new(status => HTTP::Status(200));
-        my &call = &.callback();
-        &call($req, $res);
+        &!callback($req, $res);
     }
 }
 
 # TODO: Globals kind of suck, but they work here. Maybe we can improve this.
-our %ROUTES            = Hash.new; # TODO: Should be un-modifiable after listen is called.
-our $PARAM_IDX         = ':';
-our $PARAM_PLACEHOLDER = '**';
+our %ROUTES; # TODO: Should be un-modifiable after listen is called.
+our $PARAM_IDX = ':';
 
 sub split_uri(Str $uri --> List) {
     my @uri_parts = $uri.split('/', :skip-empty);
@@ -239,20 +237,21 @@ sub dispatch_request(Request $request --> Response) {
     }
 
     my %loc := %ROUTES;
-    my %params := Hash.new;
     for @uri_parts -> $uri {
-        my $possible_param = %loc.keys.first: *.path.starts-with(':');
+        my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
+            # TODO: Implement a way for the consumer to declare their own catch-all/404 handler (Maybe middleware?)
             return Response.new(status => HTTP::Status(404)).html('404 Not Found');
-        } elsif $possible_param {
-            %params{$possible_param.match(/\w+/).Str} = $uri;
+        } elsif $possible_param && (not %loc{$uri}:exists) {
+            $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
+            %loc := %loc{$possible_param};
+        } else {
+            %loc := %loc{$uri};
         }
-
-        %loc := %loc{$uri};
     }
 
-    %loc{$request.method}($request.clone(params => %params));
+    %loc{$request.method}($request);
 }
 
 sub get(Str $path, &callback) is export {
