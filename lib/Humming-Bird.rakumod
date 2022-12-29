@@ -147,7 +147,7 @@ class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
 
     method status(Int $status --> Response) {
-        $.status = HTTP::Status($status);
+        $!status = HTTP::Status($status);
         self;
     }
 
