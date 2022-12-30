@@ -1,4 +1,4 @@
-=pod begin
+=begin pod
 =head1 Humming-Bird::Middleware
 
 Simple middleware for the Humming-Bird web-framework.
@@ -16,7 +16,7 @@ Simple middleware for the Humming-Bird web-framework.
 
 This middleware will concisely log all traffic traffic heading for this route.
 
-=pod end
+=end pod
 
 use v6;
 
