@@ -52,7 +52,7 @@ sub block_firefox($request, $response, &next) {
 
 get('/firefox-not-allowed', -> $request, $response {
     $response.html('<h1>Hello Non-firefox user!</h1>');
-}, [ &block_firefox ]);
+}, [ &m_logger, &block_firefox ]); # Many middlewares can be combined.
 
 
 listen(8080);

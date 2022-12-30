@@ -197,8 +197,11 @@ class Route is Callable {
     method CALL-ME(Request $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
+            # Compose the middleware together using partial application
+            # Finally, the main callback is added to the end of the chain
             @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) })(&!callback.assuming($req, $res));
         } else {
+            # If there is are no middlewares, just process the callback
             &!callback($req, $res);
         }
     }

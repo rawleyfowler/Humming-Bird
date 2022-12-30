@@ -4,7 +4,7 @@ use strict;
 use Test;
 use Humming-Bird::Core;
 
-plan 4;
+plan 6;
 
 my &cb = sub (Request $request, Response $response --> Response) {
     $response.html('Hello World');

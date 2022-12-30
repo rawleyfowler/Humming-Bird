@@ -1,4 +1,20 @@
 =pod begin
+=head1 Humming-Bird::Middleware
+
+Simple middleware for the Humming-Bird web-framework.
+
+=head2 Exported middlewares
+
+=head3 m_logger
+
+=for code
+    use Humming-Bird::Core;
+    use Humming-Bird::Middleware;
+    get('/', -> $request, $response {
+        $response.html('<h1>Hello World!</h1>');
+    }, [ &m_logger ]);
+
+This middleware will concisely log all traffic traffic heading for this route.
 
 =pod end
 
