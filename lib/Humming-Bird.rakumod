@@ -194,7 +194,7 @@ class Route is Callable {
     method CALL-ME(Request $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
-            @!middlewares.reduce(-> &a, &b { -> &next { &a($req, $res, -> { &b($req, $res, &next) }) }})(-> { &!callback($req, $res) });
+            @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) })(&!callback.assuming($req, $res));
         } else {
             &!callback($req, $res);
         }

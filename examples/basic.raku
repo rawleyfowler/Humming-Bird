@@ -42,7 +42,7 @@ my &logger = -> $req, $res, &next {
 
 get('/logged', -> $request, $response {
     $response.html('<h1>Your request has been logged. Check the console.</h1>');
-}, [ &logger, &logger ]);
+}, [ &logger, &logger, &logger ]);
 
 listen(8080);
 
