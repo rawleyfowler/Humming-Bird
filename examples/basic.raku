@@ -35,10 +35,14 @@ get('/help.txt', -> $request, $response {
 });
 
 # Simple route based middleware
-my &logger = -> $req { say $req; $req };
+my &logger = -> $req, $res, &next {
+    say $req;
+    &next();
+}
+
 get('/logged', -> $request, $response {
     $response.html('<h1>Your request has been logged. Check the console.</h1>');
-}, [ &logger ]);
+}, [ &logger, &logger ]);
 
 listen(8080);
 
