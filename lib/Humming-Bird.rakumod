@@ -262,6 +262,11 @@ sub dispatch_request(Request $request --> Response) {
         }
     }
 
+    # If we don't support the request method on this route.
+    if not %loc{$request.method}:exists {
+        return Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+    }
+
     %loc{$request.method}($request);
 }
 
