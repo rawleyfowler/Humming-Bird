@@ -50,7 +50,7 @@ More examples can be found in the [examples](https://github.com/rawleyfowler/Hum
 ## Things to keep in mind
 - This project is in active development, things will break.
 - You may run into bugs.
-- A few major web-framework features are missing (mainly middleware)
+- A few major web-framework features are missing.
 - **Not** production ready, yet.
 
 ## How to install

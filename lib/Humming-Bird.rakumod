@@ -77,15 +77,18 @@ sub decode_headers(Str $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
-our $VERSION = '0.0.1';
+our $VERSION = '0.1.0';
 
 class HTTPAction {
     has %.headers is Hash;
     has Str $.body is rw = "";
 
-    method header(Str $name, Str $value --> HTTPAction) {
-        %.headers{$name} = $value;
-        self;
+    method header(Str $name --> Str) {
+        if %.headers{$name}:exists {
+            return %.headers{$name};
+        }
+
+        Nil;
     }
 }
 

@@ -14,7 +14,8 @@
 	"perl": "6.d",
 	"provides": {
     "Humming-Bird::HTTPServer": "lib/HTTPServer.rakumod",
-		"Humming-Bird::Core": "lib/Humming-Bird.rakumod"
+		"Humming-Bird::Core": "lib/Humming-Bird.rakumod",
+    "Humming-Bird::Middleware": "lib/Middleware.rakumod"
 	},
 	"resources": [ ],
 	"source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
