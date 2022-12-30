@@ -2,11 +2,13 @@ use v6;
 use strict;
 
 use Humming-Bird::Core;
+use Humming-Bird::Middleware;
 
 # Simple static routes
 get('/', -> $request, $response {
     $response.html('<h1>Hello World!</h1>');
 });
+
 
 # Path parameters
 get('/:user', -> $request, $response {
@@ -14,9 +16,6 @@ get('/:user', -> $request, $response {
     $response.html(sprintf('<h1>Hello %s</h1>', $user));
 });
 
-get('/favicon.ico', -> $request, $response {
-    $response.html("No favico sorry :L");
-});
 
 # Query parameters
 post('/password', -> $request, $response {
@@ -29,10 +28,32 @@ post('/password', -> $request, $response {
     }
 });
 
+
 # Serving Files
 get('/help.txt', -> $request, $response {
     $response.file('basic.txt').content_type('text/plain');
 });
+
+
+# Simple Middleware example
+get('/logged', -> $request, $response {
+    $response.html('<h1>Your request has been logged. Check the console.</h1>');
+}, [ &m_logger ]); # m_logger is provided by Humming-Bird::Middleware
+
+
+# Custom Middleware example
+sub block_firefox($request, $response, &next) {
+    if $request.header('User-Agent').starts-with('Mozilla') {
+        return $response.status(400); # Bad Request!
+    }
+
+    next(); # Otherwise continue
+}
+
+get('/firefox-not-allowed', -> $request, $response {
+    $response.html('<h1>Hello Non-firefox user!</h1>');
+}, [ &m_logger, &block_firefox ]); # Many middlewares can be combined.
+
 
 listen(8080);
 
