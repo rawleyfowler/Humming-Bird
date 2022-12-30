@@ -189,10 +189,15 @@ class Response is HTTPAction is export {
 class Route is Callable {
     has Str $.path;
     has &.callback;
+    has @.middlewares is Array; # List of functions that type Request --> Request
 
     method CALL-ME(Request $req) {
         my $res = Response.new(status => HTTP::Status(200));
-        &!callback($req, $res);
+        if @!middlewares.elems {
+            &!callback(@!middlewares.reduce({ $^a o $^b })($req), $res);
+        } else {
+            &!callback($req, $res);
+        }
     }
 }
 
@@ -254,24 +259,24 @@ sub dispatch_request(Request $request --> Response) {
     %loc{$request.method}($request);
 }
 
-sub get(Str $path, &callback) is export {
-    delegate_route(Route.new(:$path, :&callback), GET);
+sub get(Str $path, &callback, @middlewares = []) is export {
+    delegate_route(Route.new(:$path, :&callback, :@middlewares), GET);
 }
 
-sub put(Str $path, &callback) is export {
-    delegate_route(Route.new(:$path, :&callback), PUT);
+sub put(Str $path, &callback, @middlewares = []) is export {
+    delegate_route(Route.new(:$path, :&callback, :@middlewares), PUT);
 }
 
-sub post(Str $path, &callback) is export {
-    delegate_route(Route.new(:$path, :&callback), POST);
+sub post(Str $path, &callback, @middlewares = []) is export {
+    delegate_route(Route.new(:$path, :&callback, :@middlewares), POST);
 }
 
-sub patch(Str $path, &callback) is export {
-    delegate_route(Route.new(:$path, :&callback), PATCH);
+sub patch(Str $path, &callback, @middlewares = []) is export {
+    delegate_route(Route.new(:$path, :&callback, :@middlewares), PATCH);
 }
 
-sub delete(Str $path, &callback) is export {
-    delegate_route(Route.new(:$path, :&callback), DELETE);
+sub delete(Str $path, &callback, @middlewares = []) is export {
+    delegate_route(Route.new(:$path, :&callback, :@middlewares), DELETE);
 }
 
 sub routes(--> Hash) is export {

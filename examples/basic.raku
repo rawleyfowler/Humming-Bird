@@ -34,6 +34,12 @@ get('/help.txt', -> $request, $response {
     $response.file('basic.txt').content_type('text/plain');
 });
 
+# Simple route based middleware
+my &logger = -> $req { say $req; $req };
+get('/logged', -> $request, $response {
+    $response.html('<h1>Your request has been logged. Check the console.</h1>');
+}, [ &logger ]);
+
 listen(8080);
 
 # vim: expandtab shiftwidth=4
