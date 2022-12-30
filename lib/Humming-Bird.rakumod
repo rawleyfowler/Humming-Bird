@@ -191,6 +191,8 @@ class Response is HTTPAction is export {
         } else {
             $out ~= "\r\n"
         }
+
+        $out;
     }
 }
 
@@ -263,7 +265,7 @@ sub dispatch_request(Request $request --> Response) {
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
             # TODO: Implement a way for the consumer to declare their own catch-all/404 handler (Maybe middleware?)
-            return
+            return $not_found;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
@@ -273,7 +275,7 @@ sub dispatch_request(Request $request --> Response) {
     }
 
     # For HEAD requests we should return a GET request. The decoder will delete the body
-    if $request.method eq HEAD {
+    if $request.method === HEAD {
         if %loc{GET}:exists {
             return %loc{GET}($request);
         } else {
@@ -319,7 +321,11 @@ sub listen(Int $port) is export {
         my Request $request = Request.encode($raw_request);
         start {
             my Bool $keep_alive = ($request.headers{'Connection'}:exists) && $request.headers{'Connection'} eq 'keep-alive';
-            List.new(dispatch_request($request).decode($request.method eq HEAD), $keep_alive);
+
+            # If the request is HEAD, we shouldn't return the body
+            my Bool $should_show_body = not ($request.method === HEAD);
+            # We need to do this because the Content-Length header should remain on a HEAD request.
+            List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
         }
     });
 }
