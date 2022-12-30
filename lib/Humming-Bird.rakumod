@@ -177,14 +177,22 @@ class Response is HTTPAction is export {
         self;
     }
 
-    method decode(--> Str) {
+    # $with_body is for HEAD requests.
+    method decode(Bool $with_body = True --> Str) {
         my $out = sprintf("HTTP/1.1 %d %s\r\n", $!status.code, $!status);
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
         for $.headers.pairs -> $pair { # TODO: There must be a nice way to destructure a pair.
             $out ~= sprintf("%s: %s\r\n", $pair.key, $pair.value);
         }
-        $out ~= sprintf("\r\n%s", $.body);
+
+        if $with_body {
+            $out ~= sprintf("\r\n%s", $.body);
+        } else {
+            $out ~= "\r\n"
+        }
+
+        $out;
     }
 }
 
@@ -241,6 +249,9 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
     %loc{$meth} = $route;
 }
 
+my $not_found = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my $method_not_allowed =Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
@@ -253,7 +264,7 @@ sub dispatch_request(Request $request --> Response) {
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
             # TODO: Implement a way for the consumer to declare their own catch-all/404 handler (Maybe middleware?)
-            return Response.new(status => HTTP::Status(404)).html('404 Not Found');
+            return $not_found;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
@@ -262,9 +273,18 @@ sub dispatch_request(Request $request --> Response) {
         }
     }
 
+    # For HEAD requests we should return a GET request. The decoder will delete the body
+    if $request.method === HEAD {
+        if %loc{GET}:exists {
+            return %loc{GET}($request);
+        } else {
+            return $method_not_allowed;
+        }
+    }
+
     # If we don't support the request method on this route.
-    if not %loc{$request.method}:exists {
-        return Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+    unless %loc{$request.method}:exists {
+        return $method_not_allowed;
     }
 
     %loc{$request.method}($request);
@@ -300,7 +320,11 @@ sub listen(Int $port) is export {
         my Request $request = Request.encode($raw_request);
         start {
             my Bool $keep_alive = ($request.headers{'Connection'}:exists) && $request.headers{'Connection'} eq 'keep-alive';
-            List.new(dispatch_request($request).decode, $keep_alive);
+
+            # If the request is HEAD, we shouldn't return the body
+            my Bool $should_show_body = not ($request.method === HEAD);
+            # We need to do this because the Content-Length header should remain on a HEAD request.
+            List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
         }
     });
 }
