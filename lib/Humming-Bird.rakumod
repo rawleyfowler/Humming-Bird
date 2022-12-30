@@ -252,7 +252,6 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 my $not_found = Response.new(status => HTTP::Status(404)).html('404 Not Found');
 my $method_not_allowed =Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
 
-
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
