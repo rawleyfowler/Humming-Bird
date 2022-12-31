@@ -10,8 +10,7 @@ class HTTPServer is export {
 
     method listen(&handler) {
         react {
-            # TODO: Implement some real "logging", this can be added when Middleware is implemented
-            say "Listening on port http://localhost:$.port";
+            say "Humming-Bird listening on port http://localhost:$.port";
             whenever IO::Socket::Async.listen('0.0.0.0', $.port) -> $connection {
                 whenever $connection.Supply -> $request {
                     whenever &handler($request) -> ($response, $keep_alive) {

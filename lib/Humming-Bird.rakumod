@@ -58,9 +58,12 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-### HTTP REQUEST/RESPONSE SECTION
+our constant $VERSION = '0.1.0';
+
+### REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
+# Convert a string to HTTP method, defaults to GET
 sub http_method_of_str(Str $method --> HTTPMethod) {
     given $method.lc {
         when 'get' { GET; }
@@ -73,22 +76,19 @@ sub http_method_of_str(Str $method --> HTTPMethod) {
     }
 }
 
+# Converts a string of headers "KEY: VALUE\r\nKEY: VALUE\r\n..." to a map of headers.
 sub decode_headers(Str $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
-
-our $VERSION = '0.1.0';
 
 class HTTPAction {
     has %.headers is Hash;
     has Str $.body is rw = "";
 
+    # Find a header in the action, return (Any) if not found
     method header(Str $name --> Str) {
-        if %.headers{$name}:exists {
-            return %.headers{$name};
-        }
-
-        Nil;
+        return Nil without %.headers{$name};
+        %.headers{$name};
     }
 }
 
@@ -100,19 +100,13 @@ class Request is HTTPAction is export {
     has %.query;
 
     method param(Str $param --> Str) {
-        if %!params{$param}:exists {
-            return %!params{$param};
-        }
-
-        Nil;
+        return Nil without %.params{$param};
+        %.params{$param};
     }
 
     method query(Str $query_param --> Str) {
-        if %!query{$query_param}:exists {
-            return %!query{$query_param};
-        }
-
-        Nil;
+        return Nil without %.query{$query_param};
+        %.query{$query_param};
     }
 
     submethod encode(Str $raw_request --> Request) {
@@ -136,13 +130,11 @@ class Request is HTTPAction is export {
         my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map(*.split(': ', :skip-empty)).flat);
 
         # Body should only exist if either of these headers are present.
-        if (%headers{'Content-Length'}:exists) || (%headers{'Transfer-Encoding'}:exists) {
+        with %headers{'Content-Length'} || %headers{'Transfer-Encoding'} {
             $body = @split_request[1] || "";
         }
 
-        my $request = Request.new(:$path, :$method, :$version, :%query, :$body, :%headers);
-
-        $request;
+        Request.new(:$path, :$method, :$version, :%query, :$body, :%headers);
     }
 }
 
@@ -158,20 +150,24 @@ class Response is HTTPAction is export {
         $.write($body, 'text/html');
     }
 
+    # Write a JSON string to the body of the request
     method json(Str $body --> Response) {
         $.write($body, 'application/json');
     }
 
+    # Set a file to output.
+    method file(Str $file --> Response) {
+        $.write($file.IO.slurp || '', 'text/plain'); # TODO: Infer type of output based on file extension
+    }
+
+    # Write a string to the body of the response, optionally provide a content type
     method write(Str $body, Str $content_type = 'text/plain', --> Response) {
         $.body = $body;
         %.headers{'Content-Type'} = $content_type;
         self;
     }
 
-    method file(Str $file --> Response) {
-        $.write($file.IO.slurp || '', 'text/plain');
-    }
-
+    # Set content type of the response
     method content_type(Str $type --> Response) {
         %.headers{'Content-Type'} = $type;
         self;
@@ -179,24 +175,25 @@ class Response is HTTPAction is export {
 
     # $with_body is for HEAD requests.
     method decode(Bool $with_body = True --> Str) {
-        my $out = sprintf("HTTP/1.1 %d %s\r\n", $!status.code, $!status);
+        my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
+
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
-        for $.headers.pairs -> $pair { # TODO: There must be a nice way to destructure a pair.
-            $out ~= sprintf("%s: %s\r\n", $pair.key, $pair.value);
+
+        for $.headers.pairs {
+            $out ~= sprintf("%s: %s\r\n", .key, .value);
         }
 
-        if $with_body {
-            $out ~= sprintf("\r\n%s", $.body);
-        } else {
-            $out ~= "\r\n"
-        }
+        $out ~= "\r\n";
+        $out ~= "$.body" if $with_body;
 
         $out;
     }
 }
 
 ### ROUTING SECTION
+my constant $PARAM_IDX = ':';
+
 class Route is Callable {
     has Str $.path;
     has &.callback;
@@ -207,7 +204,8 @@ class Route is Callable {
         if @!middlewares.elems {
             # Compose the middleware together using partial application
             # Finally, the main callback is added to the end of the chain
-            @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) })(&!callback.assuming($req, $res));
+            my &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) });
+            &composition(&!callback.assuming($req, $res));
         } else {
             # If there is are no middlewares, just process the callback
             &!callback($req, $res);
@@ -215,20 +213,11 @@ class Route is Callable {
     }
 }
 
-# TODO: Globals kind of suck, but they work here. Maybe we can improve this.
 our %ROUTES; # TODO: Should be un-modifiable after listen is called.
-our $PARAM_IDX = ':';
 
 sub split_uri(Str $uri --> List) {
     my @uri_parts = $uri.split('/', :skip-empty);
-
-    if $uri eq '/' {
-        @uri_parts[0] = '/';
-    } else {
-        @uri_parts.prepend('/');
-    }
-
-    @uri_parts.list;
+    @uri_parts.prepend('/').List;
 }
 
 sub delegate_route(Route $route, HTTPMethod $meth) {
@@ -246,16 +235,18 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
         %loc := %loc{$part};
     }
 
-    %loc{$meth} = $route;
+    %loc{$meth} := $route;
 }
 
-my $not_found = Response.new(status => HTTP::Status(404)).html('404 Not Found');
-my $method_not_allowed =Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+# TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
+my constant $not_found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my constant $method_not_allowed = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+my constant $bad_request        = Response.new(status => HTTP::Status(400)).html('Bad request');
 
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
-        return Response.new(status => HTTP::Status(400));
+        return $bad_request;
     }
 
     my %loc := %ROUTES;
@@ -263,7 +254,6 @@ sub dispatch_request(Request $request --> Response) {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
-            # TODO: Implement a way for the consumer to declare their own catch-all/404 handler (Maybe middleware?)
             return $not_found;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
@@ -319,8 +309,7 @@ sub listen(Int $port) is export {
     $server.listen(-> $raw_request {
         my Request $request = Request.encode($raw_request);
         start {
-            my Bool $keep_alive = ($request.headers{'Connection'}:exists) && $request.headers{'Connection'} eq 'keep-alive';
-
+            my Bool $keep_alive = ($request.headers<Connection> eq 'Keep-Alive') || False;
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
             # We need to do this because the Content-Length header should remain on a HEAD request.
