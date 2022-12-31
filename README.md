@@ -66,7 +66,7 @@ zef -v install https://github.com/rawleyfowler/Humming-Bird.git
 
 #### Install stable
 ```bash
-zef install Humming-Bird # Not available yet.
+zef install Humming-Bird
 ```
 
 ## Contributing
