@@ -16,7 +16,25 @@
 
   # Navigate to localhost:8080!
 
-=head4 Simple JSON example:
+=head4 Query params:
+
+=for code
+
+  use v6;
+
+  use Humming-Bird::Core;
+
+  post('/password', -> $request, $response {
+      my $super_secret_password = '1234';
+      my $password = $request.query('password') || 'Wrong!'; # /password?password=
+      if $password eq $super_secret_password {
+          $response.html('<h1>That password was correct!</h1>'); # Responses default to 200, change the with .status
+      } else {
+          $response.status(400).html('<h1>Wrong Password!!!</h1>');
+      }
+  });
+
+=head4 Simple JSON/path param example:
 
 =for code
 
@@ -38,7 +56,7 @@
 
   listen(8080);
 
-=head4 Middleware
+=head4 Middleware:
 
 =for code
 
