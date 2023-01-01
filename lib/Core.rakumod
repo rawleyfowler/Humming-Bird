@@ -30,12 +30,24 @@ It is expected that the route returns a valid C<Response>, in this case C<.html>
 the response object for easy chaining. There is no built in body parsers, so you'll have to
 convert bodies with another library, JSON::Fast is a good option for JSON!
 
-=head3 scope
+=head3 group
 
 =for code
-    scope: '/', @my-middlewares, [
-        get('/
-    ];
+    # Add middleware to a few routes
+    group([
+        &get.assuming('/', -> $request, $response {
+            $response.html('Index');
+        }),
+
+        &get.assuming('/other', -> $request, $response {
+            $response.html('Other');
+        })
+    ], [ &m_logger, &my_middleware ]);
+
+Group registers multiple routes functionally via partial application. This allows you to
+group as many different routes together and feed them a C<List> of middleware in the last parameter.
+Group takes a C<List> of route functions partially applied to their route and callback, then a C<List>
+of middleware to apply to the routes.
 
 =head3 listen
 

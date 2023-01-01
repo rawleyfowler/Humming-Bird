@@ -1,0 +1,69 @@
+=head1 Examples
+
+=head4 Simple example:
+=for code
+  use v6;
+
+  use Humming-Bird::Core;
+
+  get('/', -> $request, $response {
+      $response.html('<h1>Hello World</h1>');
+  });
+
+  listen(8080);
+
+  # Navigate to localhost:8080!
+
+=head4 Simple JSON example:
+=for code
+  use v6;
+
+  use Humming-Bird::Core;
+
+  my %users = Map.new('bob', '{ "name": "bob" }', 'joe', '{ "name": "joe" }');
+
+  get('/users/:user', -> $request, $response {
+      my $user = $request.param('user');
+
+      if %users{$user}:exists {
+          $response.json(%users{$user});
+      } else {
+          $response.status(404);
+      }
+  });
+
+  listen(8080);
+
+=head4 Middleware
+=for code
+  use v6;
+
+  use Humming-Bird::Core;
+  use Humming-Bird::Middleware;
+
+  get('/logged', -> $request, $response {
+      $response.html('This request has been logged!');
+  }, [ &m_logger ]); # &m_logger is provided by Humming-Bird::Middleware
+
+  # Custom middleware
+  sub block-firefox($request, $response, &next) {
+      return $response.status(400) if $request.header('User-Agent').starts-with('Mozilla');
+      $response.status(200);
+  }
+
+  get('/no-firefox', -> $request, $response {
+      $response.html('You are not using Firefox!');
+  }, [ &m_logger, &block-firefox ]);
+
+  # Scoped middleware
+
+  # Both of these routes will now share the middleware specified in the last parameter of the group.
+  group([
+      &get.assuming('/', -> $request, $response {
+          $response.write('Index');
+      }),
+
+      &post.assuming('/users', -> $request, $response {
+          $response.write($request.body).status(204);
+      })
+  ], [ &m_logger, &block-firefox ]);
