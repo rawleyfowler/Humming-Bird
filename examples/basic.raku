@@ -56,7 +56,7 @@ get('/firefox-not-allowed', -> $request, $response {
 
 # Grouping routes
 # group: @middleware, @route_callbacks
-group([
+group: [
     get.assuming('/hello', -> $request, $response {
         $response.html('<h1>Hello!</h1>');
     }),
@@ -64,7 +64,7 @@ group([
     get.assuming('/hello/world', -> $request, $response {
         $response.html('<h1>Hello World!</h1>');
     })
-], [ &m_logger, &block_firefox ]);
+], [ &m_logger, &block_firefox ];
 
 
 listen(8080);
