@@ -1,0 +1,15 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Humming-Bird::Middleware;
+
+plan 2;
+
+get('/', -> $request, $response {
+    $response.html('Hello World!');
+}, [ &m_logger ]);
+
+is routes{'/'}{GET}.middlewares[0].raku, &m_logger.raku, 'Is middleware properly assigned?';
+is routes{'/'}{GET}.middlewares[0].elems, 1, 'Is proper number of middleware inside of route?';

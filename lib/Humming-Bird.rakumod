@@ -30,6 +30,13 @@ It is expected that the route returns a valid C<Response>, in this case C<.html>
 the response object for easy chaining. There is no built in body parsers, so you'll have to
 convert bodies with another library, JSON::Fast is a good option for JSON!
 
+=head3 scope
+
+=for code
+    scope: '/', @my-middlewares, [
+        get('/
+    ];
+
 =head3 listen
 
 =for code
@@ -236,6 +243,7 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
     }
 
     %loc{$meth} := $route;
+    $route; # Return the route.
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
@@ -280,24 +288,28 @@ sub dispatch_request(Request $request --> Response) {
     %loc{$request.method}($request);
 }
 
-sub get(Str $path, &callback, @middlewares = []) is export {
+sub get(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), GET);
 }
 
-sub put(Str $path, &callback, @middlewares = []) is export {
+sub put(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), PUT);
 }
 
-sub post(Str $path, &callback, @middlewares = []) is export {
+sub post(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), POST);
 }
 
-sub patch(Str $path, &callback, @middlewares = []) is export {
+sub patch(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), PATCH);
 }
 
-sub delete(Str $path, &callback, @middlewares = []) is export {
+sub delete(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), DELETE);
+}
+
+sub group(List @routes, List @middlewares) is export {
+    for @routes { .(@middlewares) };
 }
 
 sub routes(--> Hash) is export {
