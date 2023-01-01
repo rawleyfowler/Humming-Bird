@@ -54,7 +54,20 @@ get('/firefox-not-allowed', -> $request, $response {
     $response.html('<h1>Hello Non-firefox user!</h1>');
 }, [ &m_logger, &block_firefox ]); # Many middlewares can be combined.
 
+# Grouping routes
+# group: @route_callbacks, @middleware
+group([
+    &get.assuming('/hello', -> $request, $response {
+        $response.html('<h1>Hello!</h1>');
+    }),
 
+    &get.assuming('/hello/world', -> $request, $response {
+        $response.html('<h1>Hello World!</h1>');
+    })
+], [ &m_logger, &block_firefox ]);
+
+
+# Run the application
 listen(8080);
 
 # vim: expandtab shiftwidth=4

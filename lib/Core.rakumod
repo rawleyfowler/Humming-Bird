@@ -30,6 +30,25 @@ It is expected that the route returns a valid C<Response>, in this case C<.html>
 the response object for easy chaining. There is no built in body parsers, so you'll have to
 convert bodies with another library, JSON::Fast is a good option for JSON!
 
+=head3 group
+
+=for code
+    # Add middleware to a few routes
+    group([
+        &get.assuming('/', -> $request, $response {
+            $response.html('Index');
+        }),
+
+        &get.assuming('/other', -> $request, $response {
+            $response.html('Other');
+        })
+    ], [ &m_logger, &my_middleware ]);
+
+Group registers multiple routes functionally via partial application. This allows you to
+group as many different routes together and feed them a C<List> of middleware in the last parameter.
+Group takes a C<List> of route functions partially applied to their route and callback, then a C<List>
+of middleware to apply to the routes.
+
 =head3 listen
 
 =for code
@@ -58,7 +77,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '0.1.0';
+our constant $VERSION = '0.1.1';
 
 ### REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
@@ -236,6 +255,7 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
     }
 
     %loc{$meth} := $route;
+    $route; # Return the route.
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
@@ -280,24 +300,28 @@ sub dispatch_request(Request $request --> Response) {
     %loc{$request.method}($request);
 }
 
-sub get(Str $path, &callback, @middlewares = []) is export {
+sub get(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), GET);
 }
 
-sub put(Str $path, &callback, @middlewares = []) is export {
+sub put(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), PUT);
 }
 
-sub post(Str $path, &callback, @middlewares = []) is export {
+sub post(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), POST);
 }
 
-sub patch(Str $path, &callback, @middlewares = []) is export {
+sub patch(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), PATCH);
 }
 
-sub delete(Str $path, &callback, @middlewares = []) is export {
+sub delete(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), DELETE);
+}
+
+sub group(@routes, @middlewares) is export {
+    .(@middlewares) for @routes;
 }
 
 sub routes(--> Hash) is export {
@@ -309,7 +333,10 @@ sub listen(Int $port) is export {
     $server.listen(-> $raw_request {
         my Request $request = Request.encode($raw_request);
         start {
-            my Bool $keep_alive = ($request.headers<Connection> eq 'Keep-Alive') || False;
+            my Bool $keep_alive = False;
+            with $request.headers<Connection> {
+                $keep_alive = True if $request.headers<Connection>.lc eq 'keep-alive';
+            }
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
             # We need to do this because the Content-Length header should remain on a HEAD request.
