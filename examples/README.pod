@@ -1,7 +1,9 @@
 =head1 Examples
 
 =head4 Simple example:
+
 =for code
+
   use v6;
 
   use Humming-Bird::Core;
@@ -15,7 +17,9 @@
   # Navigate to localhost:8080!
 
 =head4 Simple JSON example:
+
 =for code
+
   use v6;
 
   use Humming-Bird::Core;
@@ -35,7 +39,9 @@
   listen(8080);
 
 =head4 Middleware
+
 =for code
+
   use v6;
 
   use Humming-Bird::Core;
