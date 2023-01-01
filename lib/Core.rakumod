@@ -321,7 +321,7 @@ sub delete(Str $path, &callback, @middlewares = List.new) is export {
 }
 
 sub group(@routes, @middlewares) is export {
-    for @routes -> &cb { &cb(@middlewares) };
+    .(@middlewares) for @routes;
 }
 
 sub routes(--> Hash) is export {
@@ -333,7 +333,10 @@ sub listen(Int $port) is export {
     $server.listen(-> $raw_request {
         my Request $request = Request.encode($raw_request);
         start {
-            my Bool $keep_alive = ($request.headers<Connection> eq 'Keep-Alive') || False;
+            my Bool $keep_alive = False;
+            with $request.headers<Connection> {
+                $keep_alive = True if $request.headers<Connection>.lc eq 'keep-alive';
+            }
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
             # We need to do this because the Content-Length header should remain on a HEAD request.
