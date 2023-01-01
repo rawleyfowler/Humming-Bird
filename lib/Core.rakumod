@@ -308,8 +308,8 @@ sub delete(Str $path, &callback, @middlewares = List.new) is export {
     delegate_route(Route.new(:$path, :&callback, :@middlewares), DELETE);
 }
 
-sub group(List @routes, List @middlewares) is export {
-    for @routes { .(@middlewares) };
+sub group(@routes, @middlewares) is export {
+    for @routes -> &cb { &cb(@middlewares) };
 }
 
 sub routes(--> Hash) is export {
