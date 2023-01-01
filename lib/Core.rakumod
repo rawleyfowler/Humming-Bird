@@ -65,7 +65,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '0.1.0';
+our constant $VERSION = '0.1.1';
 
 ### REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
