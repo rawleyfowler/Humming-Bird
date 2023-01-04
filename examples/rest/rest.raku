@@ -19,7 +19,6 @@ class User {
 my @user-database = User.new(name => 'bob', age => 22, email => 'bob@bob.com');
 
 get('/users', -> $request, $response {
-    say @user-database;
     $response.json(marshal(@user-database));
 }, [ &m_logger ]);
 
