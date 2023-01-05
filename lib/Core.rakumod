@@ -79,6 +79,12 @@ unit module Humming-Bird::Core;
 
 our constant $VERSION = '0.1.1';
 
+### EXCEPTIONS SECTION
+class X::HTTP::Malformed is Exception {
+    has Str $.request is required;
+    method message { "Malformed request received: $!request" }
+}
+
 ### REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
@@ -129,9 +135,12 @@ class Request is HTTPAction is export {
     }
 
     submethod encode(Str $raw_request --> Request) {
+        # TODO: Get a better appromixmation or find smallest possible HTTP request size and short circuit if it's smaller
+        die X::HTTP::Malformed.new(request => $raw_request) if $raw_request.chars < 15;
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
         my @lines = $raw_request.lines;
         my ($method_raw, $path, $version) = @lines.head.split(' ');
+
         my $method = http_method_of_str($method_raw);
 
         # Find query params
@@ -149,8 +158,19 @@ class Request is HTTPAction is export {
         my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map(*.split(': ', :skip-empty)).flat);
 
         # Body should only exist if either of these headers are present.
-        with %headers{'Content-Length'} || %headers{'Transfer-Encoding'} {
-            $body = @split_request[1] || "";
+        with %headers<Content-Length> || %headers<Transfer-Encoding> {
+            $body = @split_request[1] || $body;
+
+            with %headers<Content-Length> {
+                say: %headers<Content-Length>, "  ", $body, " ", $body.chars;
+                die X::HTTP::Malformed.new(request => $raw_request) if $body.chars != %headers<Content-Length>.Int;
+            }
+        }
+
+        # Handle absolute URI's
+        without %headers<Host> {
+            die X::HTTP::Malformed.new(request => $raw_request) if $path.starts-with('/');
+            # TODO: Assign the Host header, and make the path relative rather than absolute
         }
 
         Request.new(:$path, :$method, :$version, :%query, :$body, :%headers);
@@ -341,6 +361,12 @@ sub listen(Int $port) is export {
             my Bool $should_show_body = not ($request.method === HEAD);
             # We need to do this because the Content-Length header should remain on a HEAD request.
             List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
+
+            CATCH {
+                when X::HTTP::Malformed {
+                    List.new($bad_request.decode(True), False);
+                }
+            }
         }
     });
 }
