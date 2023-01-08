@@ -12,13 +12,11 @@ class HTTPServer is export {
         react {
             say "Humming-Bird listening on port http://localhost:$.port";
             whenever IO::Socket::Async.listen('0.0.0.0', $.port) -> $connection {
-                # TODO: Figure out how to handle this https://docs.raku.org/type/IO::Socket::Async#method_Supply
-                # Specifically: the fact that post request bodies will ALWAYS not have the last byte included unless there is a work around.
-                whenever $connection.Supply.Channel -> $request {
-                    say $request;
-                    whenever &handler($request) -> ($response, $keep_alive) {
+                whenever $connection.Supply: :bin -> $bin-request { # Has to be bin because of: https://docs.raku.org/type/IO::Socket::Async#method_Supply
+                    my $request = $bin-request.decode.Str;
+                    whenever &handler($request) -> ($response, $keep-alive) {
                         $connection.print: $response;
-                        $connection.close unless $keep_alive;
+                        $connection.close unless $keep-alive;
                     }
                 }
             }
