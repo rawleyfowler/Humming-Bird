@@ -6,20 +6,20 @@ use Humming-Bird::Core;
 
 plan 10;
 
-my $simple_raw_request = "GET / HTTP/1.1\r\n";
+my $simple_raw_request = "GET / HTTP/1.1\r\nHost: bob.com\r\n";
 my $simple_request = Request.encode($simple_raw_request);
 
 ok $simple_request.method === GET, 'Is method OK?';
 is $simple_request.version, 'HTTP/1.1', 'Is version OK?';
 is $simple_request.path, '/', 'Is path OK?';
 
-my $simple_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\n";
+my $simple_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nHost: bob.com\r\n";
 my $simple_header_request = Request.encode($simple_header_raw_request);
 
 ok $simple_header_request.method === GET, 'Is method for header request OK?';
 is $simple_header_request.headers{'Accepted-Encoding'}, 'utf-8', 'Is header OK?';
 
-my $many_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nAccept-Language: en-US\r\nConnection: keep-alive\r\n";
+my $many_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nAccept-Language: en-US\r\nConnection: keep-alive\r\nHost: bob.com\r\n";
 my $many_header_request = Request.encode($many_header_raw_request);
 
 is $many_header_request.headers{'Accepted-Encoding'}, 'utf-8', 'Is header 1 OK?';
@@ -27,13 +27,12 @@ is $many_header_request.headers{'Accept-Language'}, 'en-US', 'Is header 2 OK?';
 is $many_header_request.headers{'Connection'}, 'keep-alive', 'Is header 3 OK?';
 
 my $body = 'aaaaaaaaaa';
-my $n = $body.chars;
-my $simple_post_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: $n\r\n\r\n$body";
+my $simple_post_raw_request = "POST / HTTP/1.1\r\nHost: bob.com\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
 my $simple_post_request = Request.encode($simple_post_raw_request);
 
 is $simple_post_request.body, $body, 'Is post body OK?';
 
-my $simple_post_empty_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 0\r\n\r\n";
+my $simple_post_empty_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 0\r\nHost: bob.com\r\n\r\n";
 my $simple_post_empty_request = Request.encode($simple_post_empty_raw_request);
 
 is $simple_post_empty_request.body, '', 'Is empty post body OK?';
