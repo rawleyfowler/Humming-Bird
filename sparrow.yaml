@@ -1,0 +1,14 @@
+tasks:
+  -
+    name: zef-build
+    language: Bash
+    default: true
+    code: |
+      set -e
+      rm -rf source/
+      git clone $(config url) source
+      cd source/
+      zef install --deps-only --/test .
+      zef test .
+    config:
+      url: https://github.com/lizmat/Humming-Bird.git
