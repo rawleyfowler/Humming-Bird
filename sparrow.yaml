@@ -11,4 +11,4 @@ tasks:
       zef install --deps-only --/test .
       zef test .
     config:
-      url: https://github.com/lizmat/Humming-Bird.git
+      url: https://github.com/rawleyfowler/Humming-Bird.git
