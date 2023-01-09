@@ -2,6 +2,8 @@
 ![Zef Badge](https://raku.land/zef:rawleyfowler/Humming-Bird/badges/version?)
 [![SparrowCI](https://ci.sparrowhub.io/project/gh-rawleyfowler-Humming-Bird/badge)](https://ci.sparrowhub.io)
 
+**Here be dragons**: Humming-Bird is still young, you may run into bugs, creatures, and daemons, if you run into any issues, please make an [issue](https://github.com/rawleyfowler/Humming-Bird/issues)!
+
 Humming-Bird is a simple, composable, and performant, all in one HTTP web-framework for Raku.
 Humming-Bird was inspired mainly by [Opium](https://github.com/rgrinberg/opium), [Sinatra](https://sinatrarb.com), and [Express](https://expressjs.com), and tries to keep
 things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
