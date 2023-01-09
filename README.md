@@ -4,7 +4,7 @@
 
 Humming-Bird is a simple, composable, and performant, all in one HTTP web-framework for Raku.
 Humming-Bird was inspired mainly by [Opium](https://github.com/rgrinberg/opium), [Sinatra](https://sinatrarb.com), and [Express](https://expressjs.com), and tries to keep
-things relatively simple, allowing the user to pull in things like templating engines, and ORM's on their own terms.
+things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
 
 Humming-Bird comes with what you need to quickly, and efficiently spin up REST API's, and with a few of the users favorite libraries, dynamic MVC style web-apps.
 
