@@ -25,7 +25,7 @@ get('/users', -> $request, $response {
 post('/users', -> $request, $response {
     my $user := unmarshal($request.body, User);
     @user-database.push($user);
-    # Simulate logging
+    # Simulate logging in
     $response.cookie('User', $user.name, DateTime.now + Duration.new(3600)); # One Hour
     $response.json(marshal($user)); # 204 Created
 });
