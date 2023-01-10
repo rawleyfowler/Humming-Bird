@@ -1,4 +1,4 @@
-# A simple REST API using Humming-Bird::Core and JSON::Fast
+# A simple REST API using Humming-Bird::Core and JSON::Marshal/Unmarshal
 
 use v6;
 use strict;
@@ -25,6 +25,8 @@ get('/users', -> $request, $response {
 post('/users', -> $request, $response {
     my $user := unmarshal($request.body, User);
     @user-database.push($user);
+    # Simulate logging in
+    $response.cookie('User', $user.name, DateTime.now + Duration.new(3600)); # One Hour
     $response.json(marshal($user)); # 204 Created
 });
 
