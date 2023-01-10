@@ -26,13 +26,13 @@
   "tags": [
     "Net",
     "Sinatra",
-    "Web Framework",
-    "HTTP Server"
+    "Web",
+    "HTTP"
   ],
   "test-depends": [
     "Test",
     "Test::When",
     "Test::Notice"
   ],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

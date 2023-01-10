@@ -79,7 +79,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '1.0.0';
+our constant $VERSION = '1.1.0';
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
@@ -108,12 +108,14 @@ sub decode_headers(Str $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
+subset SameSite of Str where 'Strict' | 'Lax';
+
 class Cookie is export {
     has Str $.name;
     has Str $.value;
     has DateTime $.expires;
     has Str $.domain where { .starts-with('/') orelse .throw } = '/';
-    has Str $.same-site where { $^a eq 'Strict' | 'Lax' } = 'Strict';
+    has SameSite $.same-site = 'Strict';
     has Bool $.http-only = True;
     has Bool $.secure = False;
 
@@ -121,11 +123,15 @@ class Cookie is export {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
         ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Domain=$.domain", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '')
         .grep({ .chars })
-        .join(';');
+        .join('; ');
     }
 
-    submethod encode(Str $cookie-string) {
-        Map.new: $cookie-string.split(/\s/, :skip-empty).map(*.split('=', :skip-empty)).flat;
+    submethod encode(Str $cookie-string) { # We encode "simple" cookies only, since they come from the requests
+        Map.new: $cookie-string
+                    .split(/\s/, :skip-empty)
+                    .map(*.split('=', :skip-empty))
+                    .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
+                    .flat;
     }
 }
 
@@ -212,13 +218,13 @@ class Response is HTTPAction is export {
     proto method cookie(|) {*}
     multi method cookie(Str $name, Cookie $value) {
         %.cookies{$name} = $value;
-        $value;
+        self;
     }
     multi method cookie(Str $name, Str $value, DateTime $expires) {
         # Default
         my $cookie = Cookie.new(:$name, :$value, :$expires);
         %.cookies{$name} = $cookie;
-        $cookie;
+        self;
     }
 
     method status(Int $status --> Response) {

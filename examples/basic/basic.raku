@@ -67,6 +67,31 @@ group([
 ], [ &m_logger, &block_firefox ]);
 
 
+# Simple cookie
+
+# Middleware to make sure you have an AUTH cookie
+sub authorized($request, $response, &next) {
+    without $request.cookie('AUTH') {
+        return $response.status(403);
+    }
+
+    &next();
+}
+
+get('/auth/home', -> $request, $response {
+    $response.html('You are logged in!');
+}, [ &authorized ]);
+
+post('/auth/login', -> $request, $response {
+    if $request.body eq 'Password123' {
+        # TODO: Implement redirects
+        $response.cookie('AUTH', 'logged in!', LocalTime.now + Duration.new(3600)).html('You logged in!');
+    } else {
+        $response.status(400);
+    }
+});
+
+
 # Run the application
 listen(8080);
 
