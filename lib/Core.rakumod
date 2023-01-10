@@ -73,11 +73,21 @@ use v6;
 use strict;
 
 use HTTP::Status;
+use DateTime::Format::RFC2822;
+
 use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
 our constant $VERSION = '1.0.0';
+
+### UTILITIES
+sub now-rfc2822(--> Str) {
+    DateTime.now(formatter => DateTime::Format::RFC2822.new())
+    .utc
+    .Str
+    .subst(/"+0000"/, 'GMT');
+}
 
 ### REQUEST/RESPONSE SECTION
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
@@ -100,14 +110,46 @@ sub decode_headers(Str $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
+grammar CookieParser {
+    rule TOP   { <name>'='<value>';' }
+    rule name  { \w+ }
+    rule value { \w+ }
+}
+
+class Cookie is export {
+    has Str $.name;
+    has Str $.value;
+    has DateTime $.expires;
+    has Str $.domain where { .starts-with('/') orelse .throw } = '/';
+    has Str $.same-site where { $^a eq 'Strict' | 'Lax' } = 'Strict';
+    has Bool $.http-only = True;
+    has Bool $.secure = False;
+
+    method decode(--> Str) {
+        ("$.name=$.value", "Expires=$.expires", "SameSite=$.same-site", "Domain=$.domain", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '')
+        .grep({ .chars })
+        .join(';');
+    }
+
+    submethod encode(Str $cookie-string --> Map) {
+        CookieParser.parse($cookie-string);
+    }
+}
+
 class HTTPAction {
     has %.headers is Hash;
+    has %.cookies is Hash;
     has Str $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
     method header(Str $name --> Str) {
         return Nil without %.headers{$name};
         %.headers{$name};
+    }
+
+    method cookie(Str $name) {
+        return Nil without %.cookies{$name};
+        %.cookies{$name};
     }
 }
 
@@ -158,15 +200,33 @@ class Request is HTTPAction is export {
         # Handle absolute URI's
         without %headers<Host> {
             # TODO: Assign the Host header, and make the path relative rather than absolute
-            ...
+            say 'Encountered an absolute URI, this is not implemented yet!';
         }
 
-        Request.new(:$path, :$method, :$version, :%query, :$body, :%headers);
+        my %cookies;
+        # Parse cookies
+        with %headers<Cookie> {
+            say 'Encountered cookies, this is not implemented yet!';
+        }
+
+        Request.new(:$path, :$method, :$version, :%query, :$body, :%headers, :%cookies);
     }
 }
 
 class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
+
+    proto method cookie(|) {*}
+    multi method cookie(Str $name, Cookie $value) {
+        %.cookies{$name} = $value;
+        $value;
+    }
+    multi method cookie(Str $name, Str $value, DateTime $expires) {
+        # Default
+        my $cookie = Cookie.new(:$name, :$value, :$expires);
+        %.cookies{$name} = $cookie;
+        $cookie;
+    }
 
     method status(Int $status --> Response) {
         $!status = HTTP::Status($status);
@@ -205,6 +265,7 @@ class Response is HTTPAction is export {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
 
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
+        $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
         for $.headers.pairs {

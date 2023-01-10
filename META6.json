@@ -6,7 +6,8 @@
   "build-depends": [
   ],
   "depends": [
-    "HTTP::Status"
+    "HTTP::Status",
+    "DateTime::Format"
   ],
   "description": "A simple, composable Web Framework.",
   "license": "MIT",
