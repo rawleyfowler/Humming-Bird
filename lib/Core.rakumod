@@ -82,11 +82,9 @@ unit module Humming-Bird::Core;
 our constant $VERSION = '1.0.0';
 
 ### UTILITIES
+sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
 sub now-rfc2822(--> Str) {
-    DateTime.now(formatter => DateTime::Format::RFC2822.new())
-    .utc
-    .Str
-    .subst(/"+0000"/, 'GMT');
+    trim-utc-for-gmt: DateTime.now(formatter => DateTime::Format::RFC2822.new()).utc.Str;
 }
 
 ### REQUEST/RESPONSE SECTION
@@ -110,12 +108,6 @@ sub decode_headers(Str $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
-grammar CookieParser {
-    rule TOP   { <name>'='<value>';' }
-    rule name  { \w+ }
-    rule value { \w+ }
-}
-
 class Cookie is export {
     has Str $.name;
     has Str $.value;
@@ -126,13 +118,14 @@ class Cookie is export {
     has Bool $.secure = False;
 
     method decode(--> Str) {
-        ("$.name=$.value", "Expires=$.expires", "SameSite=$.same-site", "Domain=$.domain", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '')
+        my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
+        ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Domain=$.domain", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '')
         .grep({ .chars })
         .join(';');
     }
 
-    submethod encode(Str $cookie-string --> Map) {
-        CookieParser.parse($cookie-string);
+    submethod encode(Str $cookie-string) {
+        Map.new: $cookie-string.split(/\s/, :skip-empty).map(*.split('=', :skip-empty)).flat;
     }
 }
 
@@ -206,7 +199,7 @@ class Request is HTTPAction is export {
         my %cookies;
         # Parse cookies
         with %headers<Cookie> {
-            say 'Encountered cookies, this is not implemented yet!';
+            %cookies := Cookie.encode(%headers<Cookie>);
         }
 
         Request.new(:$path, :$method, :$version, :%query, :$body, :%headers, :%cookies);
@@ -268,8 +261,12 @@ class Response is HTTPAction is export {
         $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
-        for $.headers.pairs {
+        for %.headers.pairs {
             $out ~= sprintf("%s: %s\r\n", .key, .value);
+        }
+
+        for %.cookies.values {
+            $out ~= sprintf("Set-Cookie: %s\r\n", .decode);
         }
 
         $out ~= "\r\n";
