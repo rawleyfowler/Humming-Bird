@@ -10,6 +10,8 @@ things minimal, allowing the user to pull in things like templating engines, and
 
 Humming-Bird comes with what you need to quickly, and efficiently spin up REST API's, and with a few of the users favorite libraries, dynamic MVC style web-apps.
 
+Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as httpd or NGiNX.
+
 ## Examples
 
 #### Simple example:
