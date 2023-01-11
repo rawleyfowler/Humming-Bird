@@ -79,7 +79,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '1.1.0';
+our constant $VERSION = '1.1.1';
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
@@ -114,14 +114,15 @@ class Cookie is export {
     has Str $.name;
     has Str $.value;
     has DateTime $.expires;
-    has Str $.domain where { .starts-with('/') orelse .throw } = '/';
+    has Str $.domain;
+    has Str $.path where { .starts-with('/') orelse .throw } = '/';
     has SameSite $.same-site = 'Strict';
     has Bool $.http-only = True;
     has Bool $.secure = False;
 
     method decode(--> Str) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
-        ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Domain=$.domain", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '')
+        ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Path=$.path", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '', $.domain // '')
         .grep({ .chars })
         .join('; ');
     }
