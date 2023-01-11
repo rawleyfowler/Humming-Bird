@@ -332,9 +332,10 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
-my constant $not_found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
-my constant $method_not_allowed = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
-my constant $bad_request        = Response.new(status => HTTP::Status(400)).html('Bad request');
+my constant $not_found             = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my constant $method_not_allowed    = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+my constant $bad_request           = Response.new(status => HTTP::Status(400)).html('Bad request');
+my constant $internal_server_error = Response.new(status => HTTP::Status(500)).html('500 Internal Server Error');
 
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
@@ -401,7 +402,12 @@ sub routes(--> Hash) is export {
     %ROUTES.clone;
 }
 
-sub listen(Int $port) is export {
+# Advice is taken from the spring-boot world of "Controller-Advice", it is basically a global error handler
+sub default-advice(Any $err) {
+    $internal_server_error.html(~$err);
+}
+
+sub listen(Int $port, &advice = &default-advice) is export {
     my HTTPServer $server = HTTPServer.new(port => $port);
     $server.listen(-> $raw_request {
         start {
@@ -413,7 +419,13 @@ sub listen(Int $port) is export {
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
             # We need $should_show_body because the Content-Length header should remain on a HEAD request.
-            List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
+            return List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
+
+            CATCH {
+                default {
+                    return &advice($*ERR);
+                }
+            }
         }
     });
 }
