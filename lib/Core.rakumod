@@ -418,14 +418,11 @@ sub listen(Int $port, &advice = &default-advice) is export {
             }
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
-            # We need $should_show_body because the Content-Length header should remain on a HEAD request.
-            return List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
 
-            CATCH {
-                default {
-                    return &advice($*ERR);
-                }
-            }
+            my $response = dispatch_request($request);
+
+            # We need $should_show_body because the Content-Length header should remain on a HEAD request.
+            return ($response.decode($should_show_body) || &advice($*ERR), $keep_alive);
         }
     });
 }

@@ -30,6 +30,10 @@ post('/users', -> $request, $response {
     $response.json(marshal($user)); # 204 Created
 });
 
+get('/ded', -> $request, $response {
+    die 'CRAP';
+});
+
 listen(8080);
 
 # vim: expandtab shiftwidth=4
