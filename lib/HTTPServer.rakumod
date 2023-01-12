@@ -6,7 +6,7 @@ use v6;
 unit module Humming-Bird::HTTPServer;
 
 class HTTPServer is export {
-    my Int $.port = 8080;
+    has Int $.port = 8080;
 
     method listen(&handler) {
         react {
