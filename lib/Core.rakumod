@@ -408,7 +408,7 @@ sub listen(Int $port) is export {
             my Request $request = Request.encode($raw_request);
             my Bool $keep_alive = False;
             with $request.headers<Connection> {
-                $keep_alive = True if $request.headers<Connection>.lc eq 'keep-alive';
+                $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
             }
             # If the request is HEAD, we shouldn't return the body
             my Bool $should_show_body = not ($request.method === HEAD);
