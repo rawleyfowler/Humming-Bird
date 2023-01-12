@@ -1,7 +1,7 @@
 # A simple REST API using Humming-Bird::Core and JSON::Marshal/Unmarshal
 
 # Test it with this
-# curl -X post http://localhost:8080/users -d '{ "name": "bob", "age": 13, "email": "KEK123" }' -v
+# curl -X post http://localhost:8080/users -d '{ "name": "bob", "age": 13, "email": "bob@gmail.com" }' -v
 
 use v6;
 use strict;
