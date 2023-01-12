@@ -3,9 +3,7 @@
 
 use v6;
 
-unit module Humming-Bird::HTTPServer;
-
-class HTTPServer is export {
+class Humming-Bird::HTTPServer is export {
     has Int $.port = 8080;
 
     method listen(&handler) {

@@ -1,6 +1,6 @@
 use v6;
+use lib 'lib';
 use strict;
-
 use Test;
 use Humming-Bird::Core;
 
