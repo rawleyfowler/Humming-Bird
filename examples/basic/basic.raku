@@ -84,8 +84,7 @@ get('/auth/home', -> $request, $response {
 
 post('/auth/login', -> $request, $response {
     if $request.body eq 'Password123' {
-        # TODO: Implement redirects
-        $response.cookie('AUTH', 'logged in!', LocalTime.now + Duration.new(3600)).html('You logged in!');
+        $response.cookie('AUTH', 'logged in!', DateTime.now + Duration.new(3600)).html('You logged in!');
     } else {
         $response.status(400);
     }
@@ -93,6 +92,6 @@ post('/auth/login', -> $request, $response {
 
 
 # Run the application
-listen(8080);
+listen(9000);
 
 # vim: expandtab shiftwidth=4
