@@ -236,8 +236,8 @@ class Response is HTTPAction is export {
     }
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
-    method redirect(Str $to, :$permanent) {
-        %.headers{'Location'} = $to;
+    method redirect($to, :$permanent) {
+        %.headers<Location> = $to;
         self.status(307) without $permanent;
         self.status(308) with $permanent;
         self;
@@ -323,8 +323,8 @@ sub split_uri(Str $uri --> List) {
 }
 
 sub delegate_route(Route $route, HTTPMethod $meth) {
-    die 'Route cannot be empty'  if $route.path.chars eq 0;
-    die sprintf("Invalid route: %s", $route.path) unless $route.path.contains('/');
+    die 'Route cannot be empty' unless $route.path;
+    die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
     my @uri_parts = split_uri($route.path);
 
@@ -342,7 +342,7 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
-my constant $not_found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my constant $not-found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
 my constant $method_not_allowed = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
 my constant $bad_request        = Response.new(status => HTTP::Status(400)).html('Bad request');
 
@@ -357,7 +357,7 @@ sub dispatch_request(Request $request --> Response) {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
-            return $not_found;
+            return $not-found;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};

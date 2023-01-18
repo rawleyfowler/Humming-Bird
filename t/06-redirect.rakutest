@@ -15,8 +15,8 @@ is routes{'/'}{'bob'}{GET}($req).header('Location'), '/home', 'Is redirect locat
 is routes{'/'}{'bob'}{GET}($req).status, HTTP::Status(307), 'Is redirect status OK?';
 
 get('/toby', -> $request, $response {
-  $response.redirect('/home', permanent => True);
+  $response.redirect('/home', :permanent);
 });
 
-is routes{'/'}{'bob'}{GET}($req).header('Location'), '/home', 'Is permanent redirect location OK?';
-is routes{'/'}{'bob'}{GET}($req).status, HTTP::Status(308), 'Is permanent redirect status OK?';
+is routes{'/'}{'toby'}{GET}($req).header('Location'), '/home', 'Is permanent redirect location OK?';
+is routes{'/'}{'toby'}{GET}($req).status, HTTP::Status(308), 'Is permanent redirect status OK?';
