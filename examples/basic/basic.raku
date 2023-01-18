@@ -91,6 +91,12 @@ post('/auth/login', -> $request, $response {
 });
 
 
+# Redirects
+
+get('/take/me/home', -> $request, $response {
+    $response.redirect('/', :permanent); # Do not provide permanent for a status of 307.
+});
+
 # Run the application
 listen(9000);
 

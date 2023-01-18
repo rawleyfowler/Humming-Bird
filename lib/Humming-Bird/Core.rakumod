@@ -26,7 +26,7 @@ I recommend NGiNX. This is why TLS is not implemented.
     head ...
 
 Register an HTTP route, and a C<Block> that takes a Request and a Response.
-It is expected that the route returns a valid C<Response>, in this case C<.html> returns
+It is expected that the route handler returns a valid C<Response>, in this case C<.html> returns
 the response object for easy chaining. There is no built in body parsers, so you'll have to
 convert bodies with another library, JSON::Fast is a good option for JSON!
 
@@ -69,7 +69,7 @@ Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
 
 =end pod
 
-use v6;
+use v6.d;
 use strict;
 
 use HTTP::Status;
@@ -180,7 +180,7 @@ class Request is HTTPAction is export {
 
         # Find query params
         my %query is Hash;
-        if @lines[0] ~~ m:g/<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
+        if @lines[0] ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
             %query = Map.new($<>.map({ .split('=') }).flat);
             $path = $path.split('?', :skip-empty)[0];
         }
@@ -228,8 +228,18 @@ class Response is HTTPAction is export {
         self;
     }
 
-    method status(Int $status --> Response) {
+    proto method status(|) {*}
+    multi method status(--> HTTP::Status) { $!status }
+    multi method status(Int $status --> Response) {
         $!status = HTTP::Status($status);
+        self;
+    }
+
+    # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
+    method redirect(Str $to, :$permanent) {
+        %.headers{'Location'} = $to;
+        self.status(307) without $permanent;
+        self.status(308) with $permanent;
         self;
     }
 
@@ -255,7 +265,7 @@ class Response is HTTPAction is export {
     }
 
     # Set content type of the response
-    method content_type(Str $type --> Response) {
+    method content-type(Str $type --> Response) {
         %.headers{'Content-Type'} = $type;
         self;
     }
