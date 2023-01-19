@@ -342,14 +342,14 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
-my constant $not-found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
-my constant $method_not_allowed = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
-my constant $bad_request        = Response.new(status => HTTP::Status(400)).html('Bad request');
+my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('Bad request');
 
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
-        return $bad_request;
+        return $BAD-REQUEST;
     }
 
     my %loc := %ROUTES;
@@ -357,7 +357,7 @@ sub dispatch_request(Request $request --> Response) {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
-            return $not-found;
+            return $NOT-FOUND;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
@@ -371,13 +371,13 @@ sub dispatch_request(Request $request --> Response) {
         if %loc{GET}:exists {
             return %loc{GET}($request);
         } else {
-            return $method_not_allowed;
+            return $METHOD-NOT-ALLOWED;
         }
     }
 
     # If we don't support the request method on this route.
     unless %loc{$request.method}:exists {
-        return $method_not_allowed;
+        return $METHOD-NOT-ALLOWED;
     }
 
     %loc{$request.method}($request);
