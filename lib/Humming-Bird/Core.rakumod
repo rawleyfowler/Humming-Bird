@@ -26,7 +26,7 @@ I recommend NGiNX. This is why TLS is not implemented.
     head ...
 
 Register an HTTP route, and a C<Block> that takes a Request and a Response.
-It is expected that the route returns a valid C<Response>, in this case C<.html> returns
+It is expected that the route handler returns a valid C<Response>, in this case C<.html> returns
 the response object for easy chaining. There is no built in body parsers, so you'll have to
 convert bodies with another library, JSON::Fast is a good option for JSON!
 
@@ -69,7 +69,7 @@ Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
 
 =end pod
 
-use v6;
+use v6.d;
 use strict;
 
 use HTTP::Status;
@@ -79,7 +79,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '1.1.1';
+our constant $VERSION = '1.1.3';
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
@@ -180,7 +180,7 @@ class Request is HTTPAction is export {
 
         # Find query params
         my %query is Hash;
-        if @lines[0] ~~ m:g/<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
+        if @lines[0] ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
             %query = Map.new($<>.map({ .split('=') }).flat);
             $path = $path.split('?', :skip-empty)[0];
         }
@@ -228,8 +228,18 @@ class Response is HTTPAction is export {
         self;
     }
 
-    method status(Int $status --> Response) {
+    proto method status(|) {*}
+    multi method status(--> HTTP::Status) { $!status }
+    multi method status(Int $status --> Response) {
         $!status = HTTP::Status($status);
+        self;
+    }
+
+    # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
+    method redirect($to, :$permanent) {
+        %.headers<Location> = $to;
+        self.status(307) without $permanent;
+        self.status(308) with $permanent;
         self;
     }
 
@@ -255,7 +265,7 @@ class Response is HTTPAction is export {
     }
 
     # Set content type of the response
-    method content_type(Str $type --> Response) {
+    method content-type(Str $type --> Response) {
         %.headers{'Content-Type'} = $type;
         self;
     }
@@ -313,8 +323,8 @@ sub split_uri(Str $uri --> List) {
 }
 
 sub delegate_route(Route $route, HTTPMethod $meth) {
-    die 'Route cannot be empty'  if $route.path.chars eq 0;
-    die sprintf("Invalid route: %s", $route.path) unless $route.path.contains('/');
+    die 'Route cannot be empty' unless $route.path;
+    die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
     my @uri_parts = split_uri($route.path);
 
@@ -332,14 +342,14 @@ sub delegate_route(Route $route, HTTPMethod $meth) {
 }
 
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
-my constant $not_found          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
-my constant $method_not_allowed = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
-my constant $bad_request        = Response.new(status => HTTP::Status(400)).html('Bad request');
+my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
+my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
+my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('Bad request');
 
 sub dispatch_request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
-        return $bad_request;
+        return $BAD-REQUEST;
     }
 
     my %loc := %ROUTES;
@@ -347,7 +357,7 @@ sub dispatch_request(Request $request --> Response) {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
         if (not %loc{$uri}:exists) && (not $possible_param) {
-            return $not_found;
+            return $NOT-FOUND;
         } elsif $possible_param && (not %loc{$uri}:exists) {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
@@ -361,13 +371,13 @@ sub dispatch_request(Request $request --> Response) {
         if %loc{GET}:exists {
             return %loc{GET}($request);
         } else {
-            return $method_not_allowed;
+            return $METHOD-NOT-ALLOWED;
         }
     }
 
     # If we don't support the request method on this route.
     unless %loc{$request.method}:exists {
-        return $method_not_allowed;
+        return $METHOD-NOT-ALLOWED;
     }
 
     %loc{$request.method}($request);
