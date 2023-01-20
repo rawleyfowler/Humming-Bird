@@ -160,17 +160,17 @@ class Request is HTTPAction is export {
     has %.params;
     has %.query;
 
-    method param(Str $param --> Str) {
+    method param(Str:D $param --> Str) {
         return Nil without %.params{$param};
         %.params{$param};
     }
 
-    method query(Str $query_param --> Str) {
+    method query(Str:D $query_param --> Str) {
         return Nil without %.query{$query_param};
         %.query{$query_param};
     }
 
-    submethod encode(Str $raw_request --> Request) {
+    submethod encode(Str:D $raw_request --> Request) {
         # TODO: Get a better appromixmation or find smallest possible HTTP request size and short circuit if it's smaller
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
         my @lines = $raw_request.lines;
@@ -197,6 +197,13 @@ class Request is HTTPAction is export {
             $body = @split_request[1] || $body;
         }
 
+        # Absolute uris need their path encoded differently.
+        without %headers<Host> {
+            my $abs-uri = $path;
+            $path = $abs-uri.match(/^'http' 's'? '://' <[A..Z a..z \w \. \- \_ 0..9]>+ <('/'.*)>? $/).Str;
+            %headers<Host> = $abs-uri.match(/^'http''s'?'://'(<-[/]>+)'/'?.* $/)[0].Str;
+        }
+
         my %cookies;
         # Parse cookies
         with %headers<Cookie> {
@@ -211,11 +218,11 @@ class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
 
     proto method cookie(|) {*}
-    multi method cookie(Str $name, Cookie $value) {
+    multi method cookie(Str:D $name, Cookie:D $value) {
         %.cookies{$name} = $value;
         self;
     }
-    multi method cookie(Str $name, Str $value, DateTime $expires) {
+    multi method cookie(Str:D $name, Str:D $value, DateTime:D $expires) {
         # Default
         my $cookie = Cookie.new(:$name, :$value, :$expires);
         %.cookies{$name} = $cookie;
@@ -224,30 +231,30 @@ class Response is HTTPAction is export {
 
     proto method status(|) {*}
     multi method status(--> HTTP::Status) { $!status }
-    multi method status(Int $status --> Response) {
+    multi method status(Int:D $status --> Response) {
         $!status = HTTP::Status($status);
         self;
     }
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
-    method redirect($to, :$permanent) {
+    method redirect(Str:D $to, :$permanent) {
         %.headers<Location> = $to;
         self.status(307) without $permanent;
         self.status(308) with $permanent;
         self;
     }
 
-    method html(Str $body --> Response) {
+    method html(Str:D $body --> Response) {
         $.write($body, 'text/html');
     }
 
     # Write a JSON string to the body of the request
-    method json(Str $body --> Response) {
+    method json(Str:D $body --> Response) {
         $.write($body, 'application/json');
     }
 
     # Set a file to output.
-    method file(Str $file --> Response) {
+    method file(Str:D $file --> Response) {
         $.write($file.IO.slurp || '', 'text/plain'); # TODO: Infer type of output based on file extension
     }
 
@@ -295,7 +302,7 @@ class Route is Callable {
     has &.callback;
     has @.middlewares is Array; # List of functions that type Request --> Request
 
-    method CALL-ME(Request $req) {
+    method CALL-ME(Request:D $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
             # Compose the middleware together using partial application
@@ -311,12 +318,12 @@ class Route is Callable {
 
 our %ROUTES; # TODO: Should be un-modifiable after listen is called.
 
-sub split_uri(Str $uri --> List) {
+sub split_uri(Str:D $uri --> List:D) {
     my @uri_parts = $uri.split('/', :skip-empty);
     @uri_parts.prepend('/').List;
 }
 
-sub delegate_route(Route $route, HTTPMethod $meth) {
+sub delegate_route(Route:D $route, HTTPMethod:D $meth) {
     die 'Route cannot be empty' unless $route.path;
     die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
