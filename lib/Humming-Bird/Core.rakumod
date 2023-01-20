@@ -197,12 +197,6 @@ class Request is HTTPAction is export {
             $body = @split_request[1] || $body;
         }
 
-        # Handle absolute URI's
-        without %headers<Host> {
-            # TODO: Assign the Host header, and make the path relative rather than absolute
-            say 'Encountered an absolute URI, this is not implemented yet!';
-        }
-
         my %cookies;
         # Parse cookies
         with %headers<Cookie> {
