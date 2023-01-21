@@ -415,17 +415,15 @@ sub routes(--> Hash) is export {
 sub listen(Int $port) is export {
     my HTTPServer $server = HTTPServer.new(port => $port);
     $server.listen(-> $raw_request {
-        start {
-            my Request $request = Request.encode($raw_request);
-            my Bool $keep_alive = False;
-            with $request.headers<Connection> {
-                $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
-            }
-            # If the request is HEAD, we shouldn't return the body
-            my Bool $should_show_body = not ($request.method === HEAD);
-            # We need $should_show_body because the Content-Length header should remain on a HEAD request.
-            List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
+        my Request $request = Request.encode($raw_request);
+        my Bool $keep_alive = False;
+        with $request.headers<Connection> {
+            $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
         }
+        # If the request is HEAD, we shouldn't return the body
+        my Bool $should_show_body = not ($request.method === HEAD);
+        # We need $should_show_body because the Content-Length header should remain on a HEAD request.
+        List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
     });
 }
 
