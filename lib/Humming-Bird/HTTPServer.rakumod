@@ -15,9 +15,8 @@ class Humming-Bird::HTTPServer is export {
     has @!connections;
 
     method !timeout {
-        my Lock $lock .= new;
-
         start {
+            my Lock $lock .= new;
             loop {
                 sleep 1;
 
@@ -39,13 +38,15 @@ class Humming-Bird::HTTPServer is export {
     }
 
     method !respond(&handler) {
-        react {
-            whenever $.requests -> $request {
-                CATCH { default { warn $_ } }
-                say $request.Str;
-                my ($response, $keep-alive) = &handler($request<data>.decode);
-                $request<connection><socket>.write: $response.decode;
-                $request<connection><closed> = True unless $keep-alive;
+        start {
+            react {
+                whenever $.requests -> $request {
+                    CATCH { default { .say } }
+                    say $request.raku;
+                    my ($response, $keep-alive) = &handler($request<data>.decode);
+                    $request<connection><socket>.print: $response;
+                    $request<connection><closed> = True unless $keep-alive;
+                }
             }
         }
     }
@@ -56,10 +57,13 @@ class Humming-Bird::HTTPServer is export {
             data => Buf.new
         };
 
-        my @header-lines = Buf.new($data[1..$index]).decode.lines;
+        my @header-lines = Buf.new($data[0..$index-4]).decode.lines.tail(*-1);
+        say @header-lines.raku;
         return unless @header-lines.elems;
 
-        $request<data> ~= $data[1..$index];
+        $request<data> ~= $data.subbuf(1, $index);
+
+        say $request<data>.decode;
 
         my $content-length = $data.elems - $index;
         for @header-lines -> $header {
@@ -94,7 +98,7 @@ class Humming-Bird::HTTPServer is export {
             }
         }
 
-        $request<data> ~= $data[$index..$content-length];
+        $request<data> ~= $data.subbuf($index, $content-length);
         $.requests.send: $request;
     }
 
@@ -102,11 +106,11 @@ class Humming-Bird::HTTPServer is export {
         constant $DEFAULT-RN = Buf.new("\r\n\r\n".encode);
         react {
             say "Humming-Bird listening on port http://localhost:$.port";
-            # self!timeout;
+
+            self!timeout;
             self!respond(&handler);
 
             whenever IO::Socket::Async.listen('0.0.0.0', $.port) -> $connection {
-                say $connection.raku;
                 my Buf $data .= new;
                 my Int $idx   = 0;
                 my $req;
@@ -121,19 +125,19 @@ class Humming-Bird::HTTPServer is export {
                 whenever $connection.Supply: :bin -> $bytes {
                     CATCH { default { .say } }
                     say 'CONNECTION';
-                    say $bytes.Str;
+                    say $bytes.decode;
                     $data ~= $bytes;
                     %connection-map<last-active> = now;
                     while $idx++ < $data.elems - 4 {
-                        # Read in headers
-                        $idx--;
-
-                        last if $data[$idx] == $DEFAULT-RN[0]
+                        # Read up to headers
+                        $idx--, last if $data[$idx] == $DEFAULT-RN[0]
                         && $data[$idx+1] == $DEFAULT-RN[1]
                         && $data[$idx+2] == $DEFAULT-RN[2]
                         && $data[$idx+3] == $DEFAULT-RN[3];
                     }
-                    say $bytes.Str;
+
+                    $idx += 4;
+
                     self!handle-request($data, $idx, %connection-map);
                 }
 
