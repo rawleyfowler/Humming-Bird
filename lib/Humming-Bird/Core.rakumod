@@ -79,7 +79,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '1.1.3';
+our constant $VERSION = '1.1.4';
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
