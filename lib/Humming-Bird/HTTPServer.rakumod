@@ -42,7 +42,6 @@ class Humming-Bird::HTTPServer is export {
             react {
                 whenever $.requests -> $request {
                     CATCH { default { .say } }
-                    say $request.raku;
                     my ($response, $keep-alive) = &handler($request<data>.decode);
                     $request<connection><socket>.print: $response;
                     $request<connection><closed> = True unless $keep-alive;
@@ -57,13 +56,10 @@ class Humming-Bird::HTTPServer is export {
             data => Buf.new
         };
 
-        my @header-lines = Buf.new($data[0..$index-4]).decode.lines.tail(*-1);
-        say @header-lines.raku;
+        my @header-lines = Buf.new($data[0..$index]).decode.lines.tail(*-1);
         return unless @header-lines.elems;
 
-        $request<data> ~= $data.subbuf(1, $index);
-
-        say $request<data>.decode;
+        $request<data> ~= $data.subbuf(0, $index);
 
         my $content-length = $data.elems - $index;
         for @header-lines -> $header {
@@ -98,7 +94,7 @@ class Humming-Bird::HTTPServer is export {
             }
         }
 
-        $request<data> ~= $data.subbuf($index, $content-length);
+        $request<data> ~= $data.subbuf($index, $content-length+4);
         $.requests.send: $request;
     }
 
@@ -111,10 +107,6 @@ class Humming-Bird::HTTPServer is export {
             self!respond(&handler);
 
             whenever IO::Socket::Async.listen('0.0.0.0', $.port) -> $connection {
-                my Buf $data .= new;
-                my Int $idx   = 0;
-                my $req;
-
                 my %connection-map := {
                     socket => $connection,
                     last-active => now
@@ -123,9 +115,12 @@ class Humming-Bird::HTTPServer is export {
                 @!connections.push: %connection-map;
 
                 whenever $connection.Supply: :bin -> $bytes {
+                    my Buf $data .= new;
+                    my Int $idx   = 0;
+                    my $req;
+
+
                     CATCH { default { .say } }
-                    say 'CONNECTION';
-                    say $bytes.decode;
                     $data ~= $bytes;
                     %connection-map<last-active> = now;
                     while $idx++ < $data.elems - 4 {
