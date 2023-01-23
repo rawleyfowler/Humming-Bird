@@ -56,41 +56,45 @@ class Humming-Bird::HTTPServer is export {
             data => Buf.new
         };
 
-        my @header-lines = Buf.new($data[0..$index]).decode.lines.tail(*-1);
+        my @header-lines = Buf.new($data[0..$index]).decode.lines.tail(*-1).grep({ .chars });
         return unless @header-lines.elems;
 
         $request<data> ~= $data.subbuf(0, $index);
 
         my $content-length = $data.elems - $index;
         for @header-lines -> $header {
-            if $header.chomp.lc.starts-with('content-length') {
-                $content-length = $header.split(': ', :skip-empty)[1].Int // ($data.elems - $index);
-                last;
-            }
-
-            if $header.chomp.lc.starts-with('transfer-encoding') && $header.chomp.lc.index('chunked') !~~ Nil {
-                my Int $i;
-                my Int $b;
-                my Buf $rn .= new("\r\n".encode);
-                while $i < $data.elems {
-                    $i++ while $data[$i] != $rn[0]
-                    && $data[$i+1] != $rn[1]
-                    && $i + 1 < $data.elems;
-
-                    last if $i + 1 >= $data.elems;
-
-                    $b = :16($data[0..$i].decode);
-                    last if $data.elems < $i + $b;
-                    if $b == 0 {
-                        try $data .= subbuf(3);
-                        last;
-                    }
-
-                    $i += 2;
-                    $request<data> ~= $data.subbuf($i, $i+$b-3);
-                    try $data .= subbuf($i+$b+2);
-                    $i = 0;
+            my ($key, $value) = $header.split(': ', :skip-empty);
+            given $key.lc {
+                when 'content-length' {
+                    $content-length = +$value // ($data.elems - $index);
                 }
+                when 'transfer-encoding' {
+                    if $value.chomp.lc.index('chunked') !~~ Nil {
+                        my Int $i;
+                        my Int $b;
+                        my Buf $rn .= new("\r\n".encode);
+                        while $i < $data.elems {
+                            $i++ while $data[$i] != $rn[0]
+                            && $data[$i+1] != $rn[1]
+                            && $i + 1 < $data.elems;
+
+                            last if $i + 1 >= $data.elems;
+
+                            $b = :16($data[0..$i].decode);
+                            last if $data.elems < $i + $b;
+                            if $b == 0 {
+                                try $data .= subbuf(3);
+                                last;
+                            }
+
+                            $i += 2;
+                            $request<data> ~= $data.subbuf($i, $i+$b-3);
+                            try $data .= subbuf($i+$b+2);
+                            $i = 0;
+                        }
+                    }
+                }
+                default {}
             }
         }
 
