@@ -79,7 +79,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '1.1.3';
+our constant $VERSION = '1.1.4';
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
@@ -415,17 +415,15 @@ sub routes(--> Hash) is export {
 sub listen(Int $port) is export {
     my HTTPServer $server = HTTPServer.new(port => $port);
     $server.listen(-> $raw_request {
-        start {
-            my Request $request = Request.encode($raw_request);
-            my Bool $keep_alive = False;
-            with $request.headers<Connection> {
-                $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
-            }
-            # If the request is HEAD, we shouldn't return the body
-            my Bool $should_show_body = not ($request.method === HEAD);
-            # We need $should_show_body because the Content-Length header should remain on a HEAD request.
-            List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
+        my Request $request = Request.encode($raw_request);
+        my Bool $keep_alive = False;
+        with $request.headers<Connection> {
+            $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
         }
+        # If the request is HEAD, we shouldn't return the body
+        my Bool $should_show_body = not ($request.method === HEAD);
+        # We need $should_show_body because the Content-Length header should remain on a HEAD request.
+        List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
     });
 }
 
