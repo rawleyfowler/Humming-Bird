@@ -21,6 +21,8 @@ class User {
 # Fake DB, you can pull in DBIish if you need a real DB.
 my @user-database = User.new(name => 'bob', age => 22, email => 'bob@bob.com');
 
+get('/', -> $request, $response { $response.redirect('/users', :permanent) });
+
 get('/users', -> $request, $response {
     $response.json(marshal(@user-database));
 }, [ &m_logger ]);
