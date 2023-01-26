@@ -5,7 +5,7 @@ use lib 'lib';
 use Test;
 use Humming-Bird::Core;
 
-plan 13;
+plan 17;
 
 my $simple_raw_request = "GET / HTTP/1.1\r\nHost: bob.com\r\n";
 my $simple_request = Request.encode($simple_raw_request);
@@ -43,3 +43,10 @@ my $simple-absolute-uri-request = Request.encode($simple-absolute-uri-raw-reques
 is $simple-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
 is $simple-absolute-uri-request.headers<Host>, 'localhost', 'Is absolute URI host header OK?';
 is $simple-absolute-uri-request.path, '/', 'Is absolute URI path OK?';
+
+my $complex-absolute-uri-raw-request = "POST http://localhost/name/person?bob=123 HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
+my $complex-absolute-uri-request = Request.encode($complex-absolute-uri-raw-request);
+is $complex-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
+is $complex-absolute-uri-request.headers<Host>, 'localhost', 'Is absolute URI host header OK?';
+is $complex-absolute-uri-request.path, '/name/person', 'Is absolute URI path OK?';
+is $complex-absolute-uri-request.query('bob'), '123', 'Is query param OK?';

@@ -82,7 +82,7 @@ unit module Humming-Bird::Core;
 our constant $VERSION = '1.1.4';
 
 ### UTILITIES
-sub trim-utc-for-gmt(Str $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
+sub trim-utc-for-gmt(Str:D $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
 sub now-rfc2822(--> Str) {
     trim-utc-for-gmt: DateTime.now(formatter => DateTime::Format::RFC2822.new()).utc.Str;
 }
@@ -91,7 +91,7 @@ sub now-rfc2822(--> Str) {
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
 # Convert a string to HTTP method, defaults to GET
-sub http_method_of_str(Str $method --> HTTPMethod) {
+sub http_method_of_str(Str:D $method --> HTTPMethod) {
     given $method.lc {
         when 'get' { GET; }
         when 'post' { POST; }
@@ -104,7 +104,7 @@ sub http_method_of_str(Str $method --> HTTPMethod) {
 }
 
 # Converts a string of headers "KEY: VALUE\r\nKEY: VALUE\r\n..." to a map of headers.
-sub decode_headers(Str $header_block --> Map) {
+sub decode_headers(Str:D $header_block --> Map) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
@@ -127,7 +127,7 @@ class Cookie is export {
         .join('; ');
     }
 
-    submethod encode(Str $cookie-string) { # We encode "simple" cookies only, since they come from the requests
+    submethod encode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
         Map.new: $cookie-string
                     .split(/\s/, :skip-empty)
                     .map(*.split('=', :skip-empty))
@@ -142,12 +142,12 @@ class HTTPAction {
     has Str $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
-    method header(Str $name --> Str) {
+    method header(Str:D $name --> Str) {
         return Nil without %.headers{$name};
         %.headers{$name};
     }
 
-    method cookie(Str $name) {
+    method cookie(Str:D $name) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }
@@ -161,13 +161,13 @@ class Request is HTTPAction is export {
     has %.query;
 
     method param(Str:D $param --> Str) {
-        return Nil without %.params{$param};
-        %.params{$param};
+        return Nil without %!params{$param};
+        %!params{$param};
     }
 
     method query(Str:D $query_param --> Str) {
-        return Nil without %.query{$query_param};
-        %.query{$query_param};
+        return Nil without %!query{$query_param};
+        %!query{$query_param};
     }
 
     submethod encode(Str:D $raw_request --> Request) {

@@ -11,14 +11,15 @@
   ],
   "description": "A simple, composable Web Framework.",
   "license": "MIT",
-  "name": "Humming-Bird",
+  "name": "Humming-Bird::Core",
   "perl": "6.d",
   "provides": {
-    "Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
     "Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
+    "Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
     "Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod"
   },
-  "resources": [ ],
+  "resources": [
+  ],
   "source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
   "support": {
     "source": "https://github.com/rawleyfowler/Humming-Bird.git"
@@ -34,5 +35,5 @@
     "Test::When",
     "Test::Notice"
   ],
-  "version": "1.1.4"
+  "version": "1.1.5"
 }
