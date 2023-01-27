@@ -16,7 +16,8 @@
   "provides": {
     "Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
     "Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
-    "Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod"
+    "Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
+	"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod"
   },
   "resources": [
   ],
@@ -35,5 +36,5 @@
     "Test::When",
     "Test::Notice"
   ],
-  "version": "1.1.5"
+  "version": "1.1.6"
 }

@@ -3,6 +3,7 @@ use strict;
 
 use Humming-Bird::Core;
 use Humming-Bird::Middleware;
+use Humming-Bird::Advice;
 
 # Simple static routes
 get('/', -> $request, $response {
@@ -38,7 +39,7 @@ get('/help.txt', -> $request, $response {
 # Simple Middleware example
 get('/logged', -> $request, $response {
     $response.html('<h1>Your request has been logged. Check the console.</h1>');
-}, [ &m_logger ]); # m_logger is provided by Humming-Bird::Middleware
+}, [ &middleware-logger ]); # m_logger is provided by Humming-Bird::Middleware
 
 
 # Custom Middleware example
@@ -52,7 +53,7 @@ sub block_firefox($request, $response, &next) {
 
 get('/firefox-not-allowed', -> $request, $response {
     $response.html('<h1>Hello Non-firefox user!</h1>');
-}, [ &m_logger, &block_firefox ]); # Many middlewares can be combined.
+}, [ &middleware-logger, &block_firefox ]); # Many middlewares can be combined.
 
 # Grouping routes
 # group: @route_callbacks, @middleware
@@ -64,7 +65,7 @@ group([
     &get.assuming('/hello/world', -> $request, $response {
         $response.html('<h1>Hello World!</h1>');
     })
-], [ &m_logger, &block_firefox ]);
+], [ &middleware-logger, &block_firefox ]);
 
 
 # Simple cookie
@@ -96,6 +97,9 @@ post('/auth/login', -> $request, $response {
 get('/take/me/home', -> $request, $response {
     $response.redirect('/', :permanent); # Do not provide permanent for a status of 307.
 });
+
+# After middleware, Response --> Response
+advice(&advice-logger);
 
 # Run the application
 listen(9000);

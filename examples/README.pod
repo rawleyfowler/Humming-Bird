@@ -67,7 +67,7 @@
 
   get('/logged', -> $request, $response {
       $response.html('This request has been logged!');
-  }, [ &m_logger ]); # &m_logger is provided by Humming-Bird::Middleware
+  }, [ &middleware-logger ]); # &m_logger is provided by Humming-Bird::Middleware
 
   # Custom middleware
   sub block-firefox($request, $response, &next) {
@@ -77,7 +77,7 @@
 
   get('/no-firefox', -> $request, $response {
       $response.html('You are not using Firefox!');
-  }, [ &m_logger, &block-firefox ]);
+  }, [ &middleware-logger, &block-firefox ]);
 
   # Scoped middleware
 
@@ -90,7 +90,7 @@
       &post.assuming('/users', -> $request, $response {
           $response.write($request.body).status(204);
       })
-  ], [ &m_logger, &block-firefox ]);
+  ], [ &middleware-logger, &block-firefox ]);
 
 =head4 Cookies:
 
@@ -146,7 +146,7 @@
 
   get('/users', -> $request, $response {
       $response.json(marshal(@user-database));
-  }, [ &m_logger ]);
+  }, [ &middleware-logger ]);
 
   post('/users', -> $request, $response {
       my $user := unmarshal($request.body, User);
