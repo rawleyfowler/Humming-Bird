@@ -410,6 +410,10 @@ sub group(@routes, @middlewares) is export {
     .(@middlewares) for @routes;
 }
 
+multi sub advice(--> List:D) is export {
+    @ADVICE.clone;
+}
+
 multi sub advice(@advice) is export {
     @ADVICE.push: |@advice;
 }

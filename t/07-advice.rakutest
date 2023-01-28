@@ -1,0 +1,27 @@
+use v6.d;
+
+use Test;
+
+use Humming-Bird::Core;
+
+plan 3;
+
+sub custom-advice(Response $response --> Response) {
+	return $response.write('abc');
+}
+
+get('/abc', -> $request, $response {
+	$response.status(204);
+});
+
+advice(&custom-advice);
+
+# [1] because the identity function is the root advice.
+is advice()[1].raku, &custom-advice.raku, 'Is advice set properly?';
+
+my $dumby-request = Request.new(path => '/abc', method => GET, version => 'HTTP/1.1');
+my &cb = [o] advice();
+is &cb(routes{'/'}{'abc'}{GET}($dumby-request)).body, 'abc', 'Is body set correctly by Advice?';
+is &cb(routes{'/'}{'abc'}{GET}($dumby-request)).status.Int, 204, 'Does response still have old values after advice?';
+
+done-testing;
