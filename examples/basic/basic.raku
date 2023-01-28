@@ -93,10 +93,18 @@ post('/auth/login', -> $request, $response {
 
 
 # Redirects
-
 get('/take/me/home', -> $request, $response {
     $response.redirect('/', :permanent); # Do not provide permanent for a status of 307.
 });
+
+
+# Error throwing exception
+get('/throws-error', -> $request, $response {
+    $response.html('abc.html'.IO.slurp);
+});
+
+# Error handler
+error(X::AdHoc, -> $exn { Response.new(status => HTTP::Status(500)).write("Encountered an error.") });
 
 # After middleware, Response --> Response
 advice(&advice-logger);

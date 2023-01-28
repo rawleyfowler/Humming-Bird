@@ -317,6 +317,7 @@ class Route is Callable {
 
 our %ROUTES; # TODO: Should be un-modifiable after listen is called.
 our @ADVICE = [{ $^a }];
+our %ERROR;
 
 sub split_uri(Str:D $uri --> List:D) {
     my @uri_parts = $uri.split('/', :skip-empty);
@@ -358,9 +359,9 @@ sub dispatch-request(Request $request --> Response) {
     for @uri_parts -> $uri {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
-        if (not %loc{$uri}:exists) && (not $possible_param) {
+        if (not %loc{$uri}:exists) && !$possible_param {
             return $NOT-FOUND;
-        } elsif $possible_param && (not %loc{$uri}:exists) {
+        } elsif $possible_param && !%loc{$uri} {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
         } else {
@@ -417,11 +418,16 @@ multi sub advice(&advice) is export {
     @ADVICE.push: &advice;
 }
 
+sub error($type, &handler) is export {
+    %ERROR{$type.^name} = &handler;
+}
+
 sub routes(--> Hash:D) is export {
     %ROUTES.clone;
 }
 
 sub handle($raw-request) {
+    my Response $response;
     my Request $request = Request.encode($raw-request);
     my Bool $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
@@ -432,17 +438,29 @@ sub handle($raw-request) {
     # If the request is HEAD, we shouldn't return the body
     my Bool $should-show-body = not ($request.method === HEAD);
     # We need $should_show_body because the Content-Length header should remain on a HEAD request
-    my $response = dispatch-request($request);
+    $response = dispatch-request($request);
 
     return (&advice($response).decode($should-show-body), $keep-alive);
 
     CATCH {
-        default { return (&advice($SERVER-ERROR).decode(True), False) }
+        default {
+            my $name = $_.^name.Str;
+
+            without %ERROR{$name} {
+                $response = $SERVER-ERROR;
+            }
+
+            with %ERROR{$name} {
+                $response = %ERROR{$name}($_);
+            }
+
+            .resume;
+        }
     }
 }
 
-sub listen(Int $port) is export {
-    HTTPServer.new(port => $port).listen(&handle);
+sub listen(Int:D $port) is export {
+    HTTPServer.new(:$port).listen(&handle);
 }
 
 # vim: expandtab shiftwidth=4

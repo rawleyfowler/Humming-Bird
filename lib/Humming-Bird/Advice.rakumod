@@ -23,6 +23,6 @@ use Humming-Bird::Core;
 unit module Humming-Bird::Advice;
 
 sub advice-logger(Response $response --> Response) is export {
-	say "{ $response.status } | { $response.header('Content-Type') }";
+	say "{ $response.status.Int } { $response.status } | { $response.header('Content-Type') }";
 	$response;
 }
