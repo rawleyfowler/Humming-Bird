@@ -1,18 +1,19 @@
 =begin pod
-=head1 Humming-Bird::Middleware
+=head1 Humming-Bird::Advice
 
-Simple middleware for the Humming-Bird web-framework.
+Simple advice for the Humming-Bird web-framework. Advice are end-of-cycle
+middlewares. They take a Response and return a Response.
 
-=head2 Exported middlewares
+=head2 Exported advice
 
-=head3 middleware-logger
+=head3 advice-logger
 
 =for code
     use Humming-Bird::Core;
     use Humming-Bird::Advice;
 	advice(&advice-logger);
 
-This advice will concisely log all traffic leaving this route.
+This advice will concisely log all traffic leaving the application.
 
 =end pod
 
