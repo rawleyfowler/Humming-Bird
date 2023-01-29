@@ -1,0 +1,32 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Test::Util::ServerPort;
+use Cro::HTTP::Client;
+
+plan 3;
+
+my $body = 'abc';
+
+get('/', -> $request, $response {
+	$response.write($body);
+});
+
+my $port = get-unused-port;
+
+listen($port, :no-block);
+
+sleep 1; # Yes, yes, I know
+
+my $base-uri = "http://0.0.0.0:$port";
+
+my $client = Cro::HTTP::Client.new: :$base-uri;
+my $response;
+lives-ok({ $response = await $client.get('/') });
+
+ok $response, 'Was response a success?';
+is (await $response.body-text), 'abc', 'Is response body OK?';
+
+done-testing;

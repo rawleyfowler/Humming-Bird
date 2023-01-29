@@ -259,20 +259,20 @@ class Response is HTTPAction is export {
     }
 
     # Write a string to the body of the response, optionally provide a content type
-    method write(Str $body, Str $content_type = 'text/plain', --> Response) {
+    method write(Str:D $body, Str:D $content_type = 'text/plain', --> Response) {
         $.body = $body;
         %.headers{'Content-Type'} = $content_type;
         self;
     }
 
     # Set content type of the response
-    method content-type(Str $type --> Response) {
+    method content-type(Str:D $type --> Response) {
         %.headers{'Content-Type'} = $type;
         self;
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool $with_body = True --> Str) {
+    method decode(Bool:D $with_body = True --> Str) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
 
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
@@ -379,11 +379,21 @@ sub dispatch-request(Request $request --> Response) {
     }
 
     # If we don't support the request method on this route.
-    unless %loc{$request.method}:exists {
+    without %loc{$request.method} {
         return $METHOD-NOT-ALLOWED;
     }
 
-    %loc{$request.method}($request);
+    my Response $response;
+    try {
+        # This is how we pass to error handlers.
+        CATCH {
+            when %ERROR{.^name}:exists { return %ERROR{.^name}($_);  }
+            default { return $SERVER-ERROR; }
+        }
+
+        $response = %loc{$request.method}($request);
+        return $response;
+    }
 }
 
 sub get(Str $path, &callback, @middlewares = List.new) is export {
@@ -431,7 +441,6 @@ sub routes(--> Hash:D) is export {
 }
 
 sub handle($raw-request) {
-    my Response $response;
     my Request $request = Request.encode($raw-request);
     my Bool $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
@@ -442,29 +451,18 @@ sub handle($raw-request) {
     # If the request is HEAD, we shouldn't return the body
     my Bool $should-show-body = not ($request.method === HEAD);
     # We need $should_show_body because the Content-Length header should remain on a HEAD request
-    $response = dispatch-request($request);
-
-    return (&advice($response).decode($should-show-body), $keep-alive);
-
-    CATCH {
-        default {
-            my $name = $_.^name.Str;
-
-            without %ERROR{$name} {
-                $response = $SERVER-ERROR;
-            }
-
-            with %ERROR{$name} {
-                $response = %ERROR{$name}($_);
-            }
-
-            .resume;
-        }
-    }
+    return (&advice(dispatch-request($request)).decode($should-show-body), $keep-alive);
 }
 
-sub listen(Int:D $port) is export {
-    HTTPServer.new(:$port).listen(&handle);
+sub listen(Int:D $port, :$no-block) is export {
+    my $server = HTTPServer.new(:$port);
+    if $no-block {
+        do start {
+            $server.listen(&handle);
+        }
+    } else {
+        $server.listen(&handle);
+    }
 }
 
 # vim: expandtab shiftwidth=4
