@@ -155,3 +155,35 @@
   });
 
   listen(8080);
+
+=head4 After middleware aka advice
+
+=for code
+  use v6.d;
+  
+  use Humming-Bird::Core;
+  use Humming-Bird::Advice;
+  
+  advice(&advice-logger); # advice-logger is provided by Humming-Bird::Advice.
+  
+  # Custom advice
+  our clicks-today = 0;
+  sub update-clicks-today(Response:D $response --> Response:D) {
+	clicks-today++;
+	$response;
+  }
+  
+  advice(&update-clicks-today); # This will fire after every response is handled.
+
+=head4 Exception/Error handlers
+
+=for code
+  use v6.d;
+
+  use Humming-Bird::Core;
+
+  # This will catch any X::AdHoc exceptions and use this as the handler
+  error(X::AdHoc, -> $exception {
+    my $status = HTTP::Status(500);
+    Response.new(:$status).write($status.payload || 'Internal server error.');
+  });
