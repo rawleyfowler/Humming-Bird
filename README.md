@@ -16,7 +16,7 @@ Humming-Bird is not meant to face the internet directly. Please use a reverse pr
 
 #### Simple example:
 ```raku
-use v6;
+use v6.d;
 
 use Humming-Bird::Core;
 
@@ -52,7 +52,7 @@ listen(8080);
 
 #### Middleware
 ```raku
-use v6;
+use v6.d;
 
 use Humming-Bird::Core;
 use Humming-Bird::Middleware;
