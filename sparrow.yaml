@@ -8,5 +8,4 @@ tasks:
       cd source/
       zef install App::Prove6 --force-install
       prove6 -I. it/
-      zef install --deps-only --/test .
-      zef test . -v
+      prove6 -I. t/
