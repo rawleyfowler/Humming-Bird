@@ -185,5 +185,5 @@
   # This will catch any X::AdHoc exceptions and use this as the handler
   error(X::AdHoc, -> $exception {
     my $status = HTTP::Status(500);
-    Response.new(:$status).write($status.payload || 'Internal server error.');
+    Response.new(:$status).write($exception.payload || 'Internal server error.'); # In this case, when we hit an X::AdHoc lets return a 500 with the payload of the exception
   });
