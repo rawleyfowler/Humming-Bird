@@ -425,7 +425,7 @@ multi sub advice(--> List:D) is export {
 }
 
 multi sub advice(@advice) is export {
-    @ADVICE.push: |@advice;
+    @ADVICE.append: @advice;
 }
 
 multi sub advice(&advice) is export {
