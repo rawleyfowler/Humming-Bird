@@ -359,7 +359,7 @@ sub dispatch-request(Request $request --> Response) {
     for @uri_parts -> $uri {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
-        if (not %loc{$uri}:exists) && !$possible_param {
+        if  %loc{$uri}:!exists && !$possible_param {
             return $NOT-FOUND;
         } elsif $possible_param && !%loc{$uri} {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
