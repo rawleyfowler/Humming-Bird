@@ -1,0 +1,45 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Test::Util::ServerPort;
+use Cro::HTTP::Client;
+use HTTP::Status;
+
+plan 5;
+
+sub test-middleware($request, $response, &next) {
+	$response.status(204).write('abc');
+}
+
+my $i = 0;
+sub my-incr-middleware($request, $response, &next) {
+	$i++;
+	&next();
+}
+
+get('/', -> $request, $response {
+	$response.status(200).write('body'); # This shouldn't be hit.
+}, [ &my-incr-middleware, &test-middleware ]);
+
+my $port = get-unused-port;
+
+listen($port, :no-block);
+
+sleep 1; # Yes, yes, I know
+
+my $base-uri = "http://0.0.0.0:$port";
+
+my $client = Cro::HTTP::Client.new: :$base-uri;
+
+my $response;
+
+lives-ok({ $response = await $client.get('/') });
+
+ok $response, 'Was response a success?';
+is $response.status, 204, 'Is response status 204?';
+is (await $response.body-text), 'abc', 'Is response body OK?';
+is $i, 1, 'Is increment middleware working?';
+
+done-testing;

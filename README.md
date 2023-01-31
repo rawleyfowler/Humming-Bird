@@ -16,7 +16,7 @@ Humming-Bird is not meant to face the internet directly. Please use a reverse pr
 
 #### Simple example:
 ```raku
-use v6;
+use v6.d;
 
 use Humming-Bird::Core;
 
@@ -52,14 +52,14 @@ listen(8080);
 
 #### Middleware
 ```raku
-use v6;
+use v6.d;
 
 use Humming-Bird::Core;
 use Humming-Bird::Middleware;
 
 get('/logged', -> $request, $response {
     $response.html('This request has been logged!');
-}, [ &m_logger ]); # &m_logger is provided by Humming-Bird::Middleware
+}, [ &middleware-logger ]); # &middleware-logger is provided by Humming-Bird::Middleware
 
 # Custom middleware
 sub block-firefox($request, $response, &next) {
@@ -69,7 +69,7 @@ sub block-firefox($request, $response, &next) {
 
 get('/no-firefox', -> $request, $response {
     $response.html('You are not using Firefox!');
-}, [ &m_logger, &block-firefox ]);
+}, [ &middleware-logger, &block-firefox ]);
 
 # Scoped middleware
 
@@ -82,7 +82,7 @@ group([
     &post.assuming('/users', -> $request, $response {
         $response.write($request.body).status(204);
     })
-], [ &m_logger, &block-firefox ]);
+], [ &middleware-logger, &block-firefox ]);
 ```
 
 More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.

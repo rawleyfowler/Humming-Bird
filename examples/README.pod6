@@ -67,7 +67,7 @@
 
   get('/logged', -> $request, $response {
       $response.html('This request has been logged!');
-  }, [ &m_logger ]); # &m_logger is provided by Humming-Bird::Middleware
+  }, [ &middleware-logger ]); # &m_logger is provided by Humming-Bird::Middleware
 
   # Custom middleware
   sub block-firefox($request, $response, &next) {
@@ -77,7 +77,7 @@
 
   get('/no-firefox', -> $request, $response {
       $response.html('You are not using Firefox!');
-  }, [ &m_logger, &block-firefox ]);
+  }, [ &middleware-logger, &block-firefox ]);
 
   # Scoped middleware
 
@@ -90,7 +90,7 @@
       &post.assuming('/users', -> $request, $response {
           $response.write($request.body).status(204);
       })
-  ], [ &m_logger, &block-firefox ]);
+  ], [ &middleware-logger, &block-firefox ]);
 
 =head4 Cookies:
 
@@ -146,7 +146,7 @@
 
   get('/users', -> $request, $response {
       $response.json(marshal(@user-database));
-  }, [ &m_logger ]);
+  }, [ &middleware-logger ]);
 
   post('/users', -> $request, $response {
       my $user := unmarshal($request.body, User);
@@ -155,3 +155,35 @@
   });
 
   listen(8080);
+
+=head4 After middleware aka advice
+
+=for code
+  use v6.d;
+  
+  use Humming-Bird::Core;
+  use Humming-Bird::Advice;
+  
+  advice(&advice-logger); # advice-logger is provided by Humming-Bird::Advice.
+  
+  # Custom advice
+  our clicks-today = 0;
+  sub update-clicks-today(Response:D $response --> Response:D) {
+	clicks-today++;
+	$response;
+  }
+  
+  advice(&update-clicks-today); # This will fire after every response is handled.
+
+=head4 Exception/Error handlers
+
+=for code
+  use v6.d;
+
+  use Humming-Bird::Core;
+
+  # This will catch any X::AdHoc exceptions and use this as the handler
+  error(X::AdHoc, -> $exception {
+    my $status = HTTP::Status(500);
+    Response.new(:$status).write($exception.payload || 'Internal server error.'); # In this case, when we hit an X::AdHoc lets return a 500 with the payload of the exception
+  });

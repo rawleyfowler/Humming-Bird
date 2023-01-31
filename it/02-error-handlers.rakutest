@@ -1,0 +1,36 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Test::Util::ServerPort;
+use Cro::HTTP::Client;
+use HTTP::Status;
+
+plan 4;
+
+get('/', -> $request, $response {
+	die 'adhoc';
+	$response.write('body');
+});
+
+error(X::AdHoc, sub ($exception) {
+	return Response.new(status => HTTP::Status(204)).write($exception.Str);
+});
+
+my $port = get-unused-port;
+
+listen($port, :no-block);
+
+sleep 1; # Yes, yes, I know
+
+my $base-uri = "http://0.0.0.0:$port";
+
+my $client = Cro::HTTP::Client.new: :$base-uri;
+my $response;
+lives-ok({ $response = await $client.get('/') });
+ok $response, 'Was response a success?';
+is $response.status, 204, 'Is response status OK?';
+is (await $response.body-text), 'adhoc', 'Is error body OK?';
+
+done-testing;

@@ -170,10 +170,10 @@ class Request is HTTPAction is export {
         %!query{$query_param};
     }
 
-    submethod encode(Str:D $raw_request --> Request) {
+    submethod encode(Str:D $raw-request --> Request) {
         # TODO: Get a better appromixmation or find smallest possible HTTP request size and short circuit if it's smaller
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
-        my @lines = $raw_request.lines;
+        my @lines = $raw-request.lines;
         my ($method_raw, $path, $version) = @lines.head.split(' ');
 
         my $method = http_method_of_str($method_raw);
@@ -186,7 +186,7 @@ class Request is HTTPAction is export {
         }
 
         # Break the request into the body portion, and the upper headers/request line portion
-        my @split_request = $raw_request.split("\r\n\r\n", :skip-empty);
+        my @split_request = $raw-request.split("\r\n\r\n", :skip-empty);
         my $body = "";
 
         # Lose the request line and parse an assoc list of headers.
@@ -259,20 +259,20 @@ class Response is HTTPAction is export {
     }
 
     # Write a string to the body of the response, optionally provide a content type
-    method write(Str $body, Str $content_type = 'text/plain', --> Response) {
+    method write(Str:D $body, Str:D $content_type = 'text/plain', --> Response) {
         $.body = $body;
         %.headers{'Content-Type'} = $content_type;
         self;
     }
 
     # Set content type of the response
-    method content-type(Str $type --> Response) {
+    method content-type(Str:D $type --> Response) {
         %.headers{'Content-Type'} = $type;
         self;
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool $with_body = True --> Str) {
+    method decode(Bool:D $with_body = True --> Str) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
 
         $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
@@ -300,14 +300,13 @@ my constant $PARAM_IDX = ':';
 class Route is Callable {
     has Str $.path;
     has &.callback;
-    has @.middlewares is Array; # List of functions that type Request --> Request
+    has @.middlewares; # List of functions that type Request --> Request
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
-            # Compose the middleware together using partial application
+            state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) });
             # Finally, the main callback is added to the end of the chain
-            my &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) });
             &composition(&!callback.assuming($req, $res));
         } else {
             # If there is are no middlewares, just process the callback
@@ -317,6 +316,8 @@ class Route is Callable {
 }
 
 our %ROUTES; # TODO: Should be un-modifiable after listen is called.
+our @ADVICE = [{ $^a }];
+our %ERROR;
 
 sub split_uri(Str:D $uri --> List:D) {
     my @uri_parts = $uri.split('/', :skip-empty);
@@ -345,9 +346,10 @@ sub delegate_route(Route:D $route, HTTPMethod:D $meth) {
 # TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
 my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
 my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
-my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('Bad request');
+my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('400 Bad request');
+my constant $SERVER-ERROR       = Response.new(status => HTTP::Status(500)).html('500 Server Error');
 
-sub dispatch_request(Request $request --> Response) {
+sub dispatch-request(Request $request --> Response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
         return $BAD-REQUEST;
@@ -357,9 +359,9 @@ sub dispatch_request(Request $request --> Response) {
     for @uri_parts -> $uri {
         my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
-        if (not %loc{$uri}:exists) && (not $possible_param) {
+        if  %loc{$uri}:!exists && !$possible_param {
             return $NOT-FOUND;
-        } elsif $possible_param && (not %loc{$uri}:exists) {
+        } elsif $possible_param && !%loc{$uri} {
             $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
             %loc := %loc{$possible_param};
         } else {
@@ -377,11 +379,21 @@ sub dispatch_request(Request $request --> Response) {
     }
 
     # If we don't support the request method on this route.
-    unless %loc{$request.method}:exists {
+    without %loc{$request.method} {
         return $METHOD-NOT-ALLOWED;
     }
 
-    %loc{$request.method}($request);
+    my Response $response;
+    try {
+        # This is how we pass to error handlers.
+        CATCH {
+            when %ERROR{.^name}:exists { return %ERROR{.^name}($_);  }
+            default { return $SERVER-ERROR; }
+        }
+
+        $response = %loc{$request.method}($request);
+        return $response;
+    }
 }
 
 sub get(Str $path, &callback, @middlewares = List.new) is export {
@@ -408,23 +420,50 @@ sub group(@routes, @middlewares) is export {
     .(@middlewares) for @routes;
 }
 
-sub routes(--> Hash) is export {
+multi sub advice(--> List:D) is export {
+    @ADVICE.clone;
+}
+
+multi sub advice(@advice) is export {
+    @ADVICE.append: @advice;
+}
+
+multi sub advice(&advice) is export {
+    @ADVICE.push: &advice;
+}
+
+sub error($type, &handler) is export {
+    %ERROR{$type.^name} = &handler;
+}
+
+sub routes(--> Hash:D) is export {
     %ROUTES.clone;
 }
 
-sub listen(Int $port) is export {
-    my HTTPServer $server = HTTPServer.new(port => $port);
-    $server.listen(-> $raw_request {
-        my Request $request = Request.encode($raw_request);
-        my Bool $keep_alive = False;
-        with $request.headers<Connection> {
-            $keep_alive = $request.headers<Connection>.lc eq 'keep-alive';
+sub handle($raw-request) {
+    my Request $request = Request.encode($raw-request);
+    my Bool $keep-alive = False;
+    my &advice = [o] @ADVICE; # Advice are Response --> Response
+
+    with $request.headers<Connection> {
+        $keep-alive = $_.lc eq 'keep-alive';
+    }
+
+    # If the request is HEAD, we shouldn't return the body
+    my Bool $should-show-body = not ($request.method === HEAD);
+    # We need $should_show_body because the Content-Length header should remain on a HEAD request
+    return (&advice(dispatch-request($request)).decode($should-show-body), $keep-alive);
+}
+
+sub listen(Int:D $port, :$no-block) is export {
+    my $server = HTTPServer.new(:$port);
+    if $no-block {
+        do start {
+            $server.listen(&handle);
         }
-        # If the request is HEAD, we shouldn't return the body
-        my Bool $should_show_body = not ($request.method === HEAD);
-        # We need $should_show_body because the Content-Length header should remain on a HEAD request.
-        List.new(dispatch_request($request).decode($should_show_body), $keep_alive);
-    });
+    } else {
+        $server.listen(&handle);
+    }
 }
 
 # vim: expandtab shiftwidth=4
