@@ -444,8 +444,9 @@ sub handle($raw-request) {
     my Request $request = Request.encode($raw-request);
     my Bool $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
+
     with $request.headers<Connection> {
-        $keep-alive = $request.headers<Connection>.lc eq 'keep-alive';
+        $keep-alive = $_.lc eq 'keep-alive';
     }
 
     # If the request is HEAD, we shouldn't return the body
