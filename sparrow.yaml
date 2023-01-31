@@ -6,5 +6,6 @@ tasks:
     code: |
       set -e
       cd source/
+      zef install . --force-install
       zef install App::Prove6 --force-install
       prove6 -I. t/ it/
