@@ -300,14 +300,14 @@ my constant $PARAM_IDX = ':';
 class Route is Callable {
     has Str $.path;
     has &.callback;
-    has &.composition;
-    has @.middlewares is Array; # List of functions that type Request --> Request
+    has @.middlewares; # List of functions that type Request --> Request
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
+            state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) });
             # Finally, the main callback is added to the end of the chain
-            &!composition(&!callback.assuming($req, $res));
+            &composition(&!callback.assuming($req, $res));
         } else {
             # If there is are no middlewares, just process the callback
             &!callback($req, $res);
