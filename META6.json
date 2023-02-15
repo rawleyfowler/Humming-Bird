@@ -11,7 +11,7 @@
   ],
   "description": "A simple, composable Web Framework.",
   "license": "MIT",
-  "name": "Humming-Bird::Core",
+  "name": "Humming-Bird",
   "perl": "6.d",
   "provides": {
     "Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
