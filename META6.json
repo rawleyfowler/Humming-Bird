@@ -1,42 +1,43 @@
 {
-  "auth": "zef:rawleyfowler",
-  "authors": [
-    "Rawley Fowler"
-  ],
-  "build-depends": [
-  ],
-  "depends": [
-    "HTTP::Status",
-    "DateTime::Format"
-  ],
-  "description": "A simple, composable Web Framework.",
-  "license": "MIT",
-  "name": "Humming-Bird",
-  "perl": "6.d",
-  "provides": {
-    "Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
-    "Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
-    "Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
-	"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod"
-  },
-  "resources": [
-  ],
-  "source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
-  "support": {
-    "source": "https://github.com/rawleyfowler/Humming-Bird.git"
-  },
-  "tags": [
-    "Net",
-    "Sinatra",
-    "Web",
-    "HTTP"
-  ],
-  "test-depends": [
-    "Test",
-    "Test::When",
-    "Test::Notice",
-	"Test::Util::ServerPort",
-	"Cro::HTTP::Client"
-  ],
-  "version": "2.0.0"
+	"auth": "zef:rawleyfowler",
+	"authors": [
+		"Rawley Fowler"
+	],
+	"build-depends": [
+	],
+	"depends": [
+		"HTTP::Status",
+		"DateTime::Format",
+		"MIME::Types"
+	],
+	"description": "A simple, composable Web Framework.",
+	"license": "MIT",
+	"name": "Humming-Bird",
+	"perl": "6.d",
+	"provides": {
+		"Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
+		"Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
+		"Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
+		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod"
+	},
+	"resources": [
+	],
+	"source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
+	"support": {
+		"source": "https://github.com/rawleyfowler/Humming-Bird.git"
+	},
+	"tags": [
+		"Net",
+		"Sinatra",
+		"Web",
+		"HTTP"
+	],
+	"test-depends": [
+		"Test",
+		"Test::When",
+		"Test::Notice",
+		"Test::Util::ServerPort",
+		"Cro::HTTP::Client"
+	],
+	"version": "2.0.1"
 }

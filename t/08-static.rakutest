@@ -1,0 +1,15 @@
+use v6.d;
+
+use Test;
+
+use Humming-Bird::Core;
+
+plan 3;
+
+static('/static', IO::Path.new('static'));
+
+ok routes{'/'}{'static'}, 'Is route OK?';
+ok routes{'/'}{'static'}{GET}, 'Is route method OK?';
+is routes{'/'}{'static'}{GET}(Request.new(path => '/static/test.css', method => GET, version => 'HTTP/1.1')).body.chomp, "img { color: 'blue'; }", 'Is response OK?';
+
+done-testing;
