@@ -1,5 +1,4 @@
-{
-	"auth": "zef:rawleyfowler",
+{ "auth": "zef:rawleyfowler",
 	"authors": [
 		"Rawley Fowler"
 	],
@@ -13,7 +12,7 @@
 	"description": "A simple, composable Web Framework.",
 	"license": "MIT",
 	"name": "Humming-Bird",
-	"perl": "6.d",
+	"raku": "6.d",
 	"provides": {
 		"Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
 		"Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
