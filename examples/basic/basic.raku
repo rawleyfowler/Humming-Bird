@@ -110,7 +110,7 @@ error(X::AdHoc, -> $exn { Response.new(status => HTTP::Status(500)).write("Encou
 advice(&advice-logger);
 
 # Static content
-static('/static', '/var/www/static'); # Server static content from this directory, on this route.
+static('/static', '/var/www/static'); # Server static content on '/static', from '/var/www/static'
 
 # Run the application
 listen(9000);
