@@ -167,6 +167,10 @@ class Response is HTTPAction is export {
         $!status = HTTP::Status($status);
         self;
     }
+    multi method status(HTTP::Status:D $status --> Response) {
+        $!status = $status;
+        self;
+    }
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
     method redirect(Str:D $to, :$permanent) {
@@ -187,13 +191,19 @@ class Response is HTTPAction is export {
 
     # Set a file to output.
     method file(Str:D $file --> Response) {
-        $.write($file.IO.slurp || '', $mime.type($file.split('.', :skip-empty)[*-1] // 'text/plain')); # TODO: Infer type of output based on file extension
+        $.write($file.IO.slurp, $mime.type($file.split('.', :skip-empty)[*-1] // 'text/plain')); # TODO: Infer type of output based on file extension
     }
 
     # Write a string to the body of the response, optionally provide a content type
-    method write(Str:D $body, Str:D $content_type = 'text/plain', --> Response) {
+    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response) {
         $.body = $body;
-        %.headers{'Content-Type'} = $content_type;
+        %.headers{'Content-Type'} = $content-type;
+        self;
+    }
+
+    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response) {
+        self.write($body.Str ~ "\n" ~ $body.backtrace, $content-type);
+        self.status(500);
         self;
     }
 
@@ -276,7 +286,6 @@ sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
     $route; # Return the route.
 }
 
-# TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
 my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
 my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
 my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('400 Bad request');
@@ -358,13 +367,17 @@ sub group(@routes, @middlewares) is export {
     .(@middlewares) for @routes;
 }
 
-multi sub static(Str:D $path, Str:D $static-path, @middlewares = List.new) is export { static($path, IO::Path.new($static-path), @middlewares) }
+multi sub static(Str:D $path, Str:D $static-path, @middlewares = List.new) is export { static($path, $static-path.IO, @middlewares) }
 multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) is export {
 	
 	my sub callback(Request:D $request, Response:D $response) {
 		return $response.status(400) if $request.path.contains: '..';
-		my $cut-size = $path.ends-with: '/' ?? $path.chars - 2 !! $path.chars - 1;
-		$response.file(~$static-path.add($request.path.substr: $cut-size, $request.path.chars));
+		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
+        my $file = $static-path.add($request.path.substr: $cut-size, $request.path.chars);
+
+        return $NOT-FOUND unless $file.e;
+
+		$response.file(~$file);
 	}
 
 	delegate-route(Route.new(:$path, :&callback, :@middlewares, :is-static), GET);

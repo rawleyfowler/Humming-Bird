@@ -187,3 +187,13 @@
     my $status = HTTP::Status(500);
     Response.new(:$status).write($exception.payload || 'Internal server error.'); # In this case, when we hit an X::AdHoc lets return a 500 with the payload of the exception
   });
+
+=head4 Static files
+
+=for code
+
+  use v6.d;
+
+  use Humming-Bird::Core;
+
+  static('/static', '/var/www/static'); # Will serve static content from /var/www/static on route /static

@@ -3,13 +3,16 @@ use v6.d;
 use Test;
 
 use Humming-Bird::Core;
+use HTTP::Status;
 
-plan 3;
+plan 5;
 
-static('/static', IO::Path.new('static'));
+static('/static', 't/static');
 
 ok routes{'/'}{'static'}, 'Is route OK?';
 ok routes{'/'}{'static'}{GET}, 'Is route method OK?';
-is routes{'/'}{'static'}{GET}(Request.new(path => '/static/test.css', method => GET, version => 'HTTP/1.1')).body.chomp, "img { color: 'blue'; }", 'Is response OK?';
+is routes{'/'}{'static'}{GET}(Request.new(path => 't/static/test.css', method => GET, version => 'HTTP/1.1')).status, HTTP::Status(200), 'Is response status OK?';
+is routes{'/'}{'static'}{GET}(Request.new(path => 't/static/test.css', method => GET, version => 'HTTP/1.1')).body.chomp, q<img { color: 'blue'; }>, 'Is response body OK?';
+is routes{'/'}{'static'}{GET}(Request.new(path => 't/static/test.css.bob', method => GET, version => 'HTTP/1.1')).status, HTTP::Status(404), 'Is missing response status OK?';
 
 done-testing;

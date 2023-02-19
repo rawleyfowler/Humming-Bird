@@ -109,6 +109,9 @@ error(X::AdHoc, -> $exn { Response.new(status => HTTP::Status(500)).write("Encou
 # After middleware, Response --> Response
 advice(&advice-logger);
 
+# Static content
+static('/static', '/var/www/static'); # Server static content from this directory, on this route.
+
 # Run the application
 listen(9000);
 
