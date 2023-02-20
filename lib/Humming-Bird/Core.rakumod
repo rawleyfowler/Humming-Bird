@@ -1,85 +1,17 @@
-=begin pod
-=head1 Humming-Bird::Core
-
-A simple imperative web framework. Similar to Opium (OCaml) and Express (JavaScript).
-Humming-Bird aims to provide a simple, straight-forward HTTP Application server.
-Humming-Bird is not designed to be exposed to the world-wide web without a reverse proxy,
-I recommend NGiNX. This is why TLS is not implemented.
-
-=head2 Exported subroutines
-
-=head3 get, post, put, patch, delete
-
-=for code
-    get('/home', -> $request, $response {
-      $response.html('<h1>Hello World</h1>');
-    });
-
-    post('/users', -> $request, $response {
-      my $text = sprintf("Hello: %s", $request.body);
-      $response.write($text); # Content type defaults to text/plain
-    });
-
-    delete ...
-    put ...
-    patch ...
-    head ...
-
-Register an HTTP route, and a C<Block> that takes a Request and a Response.
-It is expected that the route handler returns a valid C<Response>, in this case C<.html> returns
-the response object for easy chaining. There is no built in body parsers, so you'll have to
-convert bodies with another library, JSON::Fast is a good option for JSON!
-
-=head3 group
-
-=for code
-    # Add middleware to a few routes
-    group([
-        &get.assuming('/', -> $request, $response {
-            $response.html('Index');
-        }),
-
-        &get.assuming('/other', -> $request, $response {
-            $response.html('Other');
-        })
-    ], [ &m_logger, &my_middleware ]);
-
-Group registers multiple routes functionally via partial application. This allows you to
-group as many different routes together and feed them a C<List> of middleware in the last parameter.
-Group takes a C<List> of route functions partially applied to their route and callback, then a C<List>
-of middleware to apply to the routes.
-
-=head3 listen
-
-=for code
-    listen(8080);
-
-Start the server, after you've declared your routes. It will listen in a given port.
-
-=head3 routes
-
-=for code
-    routes();
-
-Returns a read-only version of the currently stored routes.
-
-=head3 HTTPMethod
-
-Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
-
-=end pod
-
 use v6.d;
 use strict;
 
 use HTTP::Status;
 use DateTime::Format::RFC2822;
+use MIME::Types;
 
 use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
 our constant $VERSION = '2.0.0';
+
+my constant $mime = MIME::Types.new;
 
 ### UTILITIES
 sub trim-utc-for-gmt(Str:D $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
@@ -235,6 +167,10 @@ class Response is HTTPAction is export {
         $!status = HTTP::Status($status);
         self;
     }
+    multi method status(HTTP::Status:D $status --> Response) {
+        $!status = $status;
+        self;
+    }
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
     method redirect(Str:D $to, :$permanent) {
@@ -255,13 +191,19 @@ class Response is HTTPAction is export {
 
     # Set a file to output.
     method file(Str:D $file --> Response) {
-        $.write($file.IO.slurp || '', 'text/plain'); # TODO: Infer type of output based on file extension
+        $.write($file.IO.slurp, $mime.type($file.IO.extension) // 'text/plain'); # TODO: Infer type of output based on file extension
     }
 
     # Write a string to the body of the response, optionally provide a content type
-    method write(Str:D $body, Str:D $content_type = 'text/plain', --> Response) {
+    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response) {
         $.body = $body;
-        %.headers{'Content-Type'} = $content_type;
+        %.headers{'Content-Type'} = $content-type;
+        self;
+    }
+
+    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response) {
+        self.write($body.Str ~ "\n" ~ $body.backtrace, $content-type);
+        self.status(500);
         self;
     }
 
@@ -298,9 +240,10 @@ class Response is HTTPAction is export {
 my constant $PARAM_IDX = ':';
 
 class Route is Callable {
-    has Str $.path;
-    has &.callback;
+    has Str:D $.path is required;
+    has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
+	has Bool:D $.static = False;
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(status => HTTP::Status(200));
@@ -324,14 +267,14 @@ sub split_uri(Str:D $uri --> List:D) {
     @uri_parts.prepend('/').List;
 }
 
-sub delegate_route(Route:D $route, HTTPMethod:D $meth) {
+sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
     die 'Route cannot be empty' unless $route.path;
     die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
     my @uri_parts = split_uri($route.path);
 
     my %loc := %ROUTES;
-    for @uri_parts -> Str $part {
+    for @uri_parts -> Str:D $part {
         unless %loc{$part}:exists {
             %loc{$part} = Hash.new;
         }
@@ -343,13 +286,12 @@ sub delegate_route(Route:D $route, HTTPMethod:D $meth) {
     $route; # Return the route.
 }
 
-# TODO: Implement a way for the user to declare their own error handlers (maybe somekind of after middleware?)
 my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
 my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
 my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('400 Bad request');
 my constant $SERVER-ERROR       = Response.new(status => HTTP::Status(500)).html('500 Server Error');
 
-sub dispatch-request(Request $request --> Response) {
+sub dispatch-request(Request:D $request --> Response:D) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
         return $BAD-REQUEST;
@@ -357,16 +299,21 @@ sub dispatch-request(Request $request --> Response) {
 
     my %loc := %ROUTES;
     for @uri_parts -> $uri {
-        my $possible_param = %loc.keys.first: *.starts-with($PARAM_IDX);
+        my $possible-param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
-        if  %loc{$uri}:!exists && !$possible_param {
+        if  %loc{$uri}:!exists && !$possible-param {
             return $NOT-FOUND;
-        } elsif $possible_param && !%loc{$uri} {
-            $request.params{$possible_param.match(/<[A..Z a..z 0..9 \- \_]>+/).Str} = $uri;
-            %loc := %loc{$possible_param};
+        } elsif $possible-param && !%loc{$uri} {
+            $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
+            %loc := %loc{$possible-param};
         } else {
             %loc := %loc{$uri};
         }
+
+		# If the route could possibly be static
+		if %loc{$request.method}.static {
+			return %loc{$request.method}($request);
+		}
     }
 
     # For HEAD requests we should return a GET request. The decoder will delete the body
@@ -387,7 +334,7 @@ sub dispatch-request(Request $request --> Response) {
     try {
         # This is how we pass to error handlers.
         CATCH {
-            when %ERROR{.^name}:exists { return %ERROR{.^name}($_);  }
+            when %ERROR{.^name}:exists { return %ERROR{.^name}($_) }
             default { return $SERVER-ERROR; }
         }
 
@@ -396,28 +343,44 @@ sub dispatch-request(Request $request --> Response) {
     }
 }
 
-sub get(Str $path, &callback, @middlewares = List.new) is export {
-    delegate_route(Route.new(:$path, :&callback, :@middlewares), GET);
+sub get(Str:D $path, &callback, @middlewares = List.new) is export {
+    delegate-route(Route.new(:$path, :&callback, :@middlewares), GET);
 }
 
-sub put(Str $path, &callback, @middlewares = List.new) is export {
-    delegate_route(Route.new(:$path, :&callback, :@middlewares), PUT);
+sub put(Str:D $path, &callback, @middlewares = List.new) is export {
+    delegate-route(Route.new(:$path, :&callback, :@middlewares), PUT);
 }
 
-sub post(Str $path, &callback, @middlewares = List.new) is export {
-    delegate_route(Route.new(:$path, :&callback, :@middlewares), POST);
+sub post(Str:D $path, &callback, @middlewares = List.new) is export {
+    delegate-route(Route.new(:$path, :&callback, :@middlewares), POST);
 }
 
-sub patch(Str $path, &callback, @middlewares = List.new) is export {
-    delegate_route(Route.new(:$path, :&callback, :@middlewares), PATCH);
+sub patch(Str:D $path, &callback, @middlewares = List.new) is export {
+    delegate-route(Route.new(:$path, :&callback, :@middlewares), PATCH);
 }
 
-sub delete(Str $path, &callback, @middlewares = List.new) is export {
-    delegate_route(Route.new(:$path, :&callback, :@middlewares), DELETE);
+sub delete(Str:D $path, &callback, @middlewares = List.new) is export {
+    delegate-route(Route.new(:$path, :&callback, :@middlewares), DELETE);
 }
 
 sub group(@routes, @middlewares) is export {
     .(@middlewares) for @routes;
+}
+
+multi sub static(Str:D $path, Str:D $static-path, @middlewares = List.new) is export { static($path, $static-path.IO, @middlewares) }
+multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) is export {
+	
+	my sub callback(Request:D $request, Response:D $response) {
+		return $response.status(400) if $request.path.contains: '..';
+		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
+        my $file = $static-path.add($request.path.substr: $cut-size, $request.path.chars);
+
+        return $NOT-FOUND unless $file.e;
+
+		$response.file(~$file);
+	}
+
+	delegate-route(Route.new(:$path, :&callback, :@middlewares, :is-static), GET);
 }
 
 multi sub advice(--> List:D) is export {
@@ -465,5 +428,76 @@ sub listen(Int:D $port, :$no-block) is export {
         $server.listen(&handle);
     }
 }
+
+=begin pod
+=head1 Humming-Bird::Core
+
+A simple imperative web framework. Similar to Opium (OCaml) and Express (JavaScript).
+Humming-Bird aims to provide a simple, straight-forward HTTP Application server.
+Humming-Bird is not designed to be exposed to the world-wide web without a reverse proxy,
+I recommend NGiNX. This is why TLS is not implemented.
+
+=head2 Exported subroutines
+
+=head3 get, post, put, patch, delete
+
+=for code
+    get('/home', -> $request, $response {
+      $response.html('<h1>Hello World</h1>');
+    });
+
+    post('/users', -> $request, $response {
+      my $text = sprintf("Hello: %s", $request.body);
+      $response.write($text); # Content type defaults to text/plain
+    });
+
+    delete ...
+    put ...
+    patch ...
+    head ...
+
+Register an HTTP route, and a C<Block> that takes a Request and a Response.
+It is expected that the route handler returns a valid C<Response>, in this case C<.html> returns
+the response object for easy chaining. There is no built in body parsers, so you'll have to
+convert bodies with another library, JSON::Fast is a good option for JSON!
+
+=head3 group
+
+=for code
+    # Add middleware to a few routes
+    group([
+        &get.assuming('/', -> $request, $response {
+            $response.html('Index');
+        }),
+
+        &get.assuming('/other', -> $request, $response {
+            $response.html('Other');
+        })
+    ], [ &m_logger, &my_middleware ]);
+
+Group registers multiple routes functionally via partial application. This allows you to
+group as many different routes together and feed them a C<List> of middleware in the last parameter.
+Group takes a C<List> of route functions partially applied to their route and callback, then a C<List>
+of middleware to apply to the routes.
+
+=head3 listen
+
+=for code
+    listen(8080);
+
+Start the server, after you've declared your routes. It will listen in a given port.
+
+=head3 routes
+
+=for code
+    routes();
+
+Returns a read-only version of the currently stored routes.
+
+=head3 HTTPMethod
+
+Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
+
+=end pod
 
 # vim: expandtab shiftwidth=4
