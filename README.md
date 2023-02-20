@@ -31,7 +31,7 @@ listen(8080);
 
 #### Simple JSON example:
 ```raku
-use v6;
+use v6.d;
 
 use Humming-Bird::Core;
 
