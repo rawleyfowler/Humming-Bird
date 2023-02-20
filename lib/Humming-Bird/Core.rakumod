@@ -191,7 +191,7 @@ class Response is HTTPAction is export {
 
     # Set a file to output.
     method file(Str:D $file --> Response) {
-        $.write($file.IO.slurp, $mime.type($file.split('.', :skip-empty)[*-1] // 'text/plain')); # TODO: Infer type of output based on file extension
+        $.write($file.IO.slurp, $mime.type($file.IO.extension) // 'text/plain'); # TODO: Infer type of output based on file extension
     }
 
     # Write a string to the body of the response, optionally provide a content type
