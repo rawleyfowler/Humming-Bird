@@ -299,12 +299,14 @@ sub dispatch-request(Request:D $request --> Response:D) {
     }
 
     my %loc := %ROUTES;
-    for @uri_parts -> $uri {        
+    my %catch-all;
+    for @uri_parts -> $uri {
         my $possible-param = %loc.keys.first: *.starts-with($PARAM_IDX);
+        %catch-all = %loc{$CATCH_ALL_IDX} if %loc.keys.first: * eq $CATCH_ALL_IDX;
 
         if %loc{$uri}:!exists && !$possible-param {
-            if %loc{$CATCH_ALL_IDX}:exists {
-                %loc := %loc{$CATCH_ALL_IDX};
+            if %catch-all {
+                %loc := %catch-all;
                 last;
             }
             

@@ -6,7 +6,7 @@ use Humming-Bird::Core;
 use Test::Util::ServerPort;
 use Cro::HTTP::Client;
 
-plan 9;
+plan 12;
 
 my $body = 'abc';
 
@@ -14,8 +14,8 @@ get('/abc/**', -> $request, $response {
 	$response.write($body);
 });
 
-get('/abc/john', -> $request, $response { $response.write('JOHN'); });
-
+get('/**', -> $request, $response { $response.write('EFG') });
+get('/abc/john', -> $request, $response { $response.write('JOHN') });
 get('/lol/bob/**', -> $request, $response { $response.write('LOL!') });
 
 my $port = get-unused-port;
@@ -40,5 +40,9 @@ is (await $response.body-text), 'JOHN', 'Is nested response body OK?';
 lives-ok({ $response = await $client.get('/lol/bob/bobby/dude/abc') }, 'Does long request live OK?');
 ok $response, 'Was long response a success?';
 is (await $response.body-text), 'LOL!', 'Is long response body OK?';
+
+lives-ok({ $response = await $client.get('/k/efg/kadljaslkdaldjas') }, 'Does deep catch-all live OK?');
+ok $response, 'Was deep response a success?';
+is (await $response.body-text), 'EFG', 'Is deep response body OK?';
 
 done-testing;
