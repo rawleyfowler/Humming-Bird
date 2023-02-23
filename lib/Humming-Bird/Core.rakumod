@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.1';
+our constant $VERSION = '2.0.2';
 
 my constant $mime = MIME::Types.new;
 
@@ -237,7 +237,8 @@ class Response is HTTPAction is export {
 }
 
 ### ROUTING SECTION
-my constant $PARAM_IDX = ':';
+my constant $PARAM_IDX     = ':';
+my constant $CATCH_ALL_IDX = '**';
 
 class Route is Callable {
     has Str:D $.path is required;
@@ -298,10 +299,15 @@ sub dispatch-request(Request:D $request --> Response:D) {
     }
 
     my %loc := %ROUTES;
-    for @uri_parts -> $uri {
+    for @uri_parts -> $uri {        
         my $possible-param = %loc.keys.first: *.starts-with($PARAM_IDX);
 
-        if  %loc{$uri}:!exists && !$possible-param {
+        if %loc{$uri}:!exists && !$possible-param {
+            if %loc{$CATCH_ALL_IDX}:exists {
+                %loc := %loc{$CATCH_ALL_IDX};
+                last;
+            }
+            
             return $NOT-FOUND;
         } elsif $possible-param && !%loc{$uri} {
             $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
@@ -311,9 +317,11 @@ sub dispatch-request(Request:D $request --> Response:D) {
         }
 
 		# If the route could possibly be static
-		if %loc{$request.method}.static {
-			return %loc{$request.method}($request);
-		}
+        with %loc{$request.method} {
+		    if %loc{$request.method}.static {
+			    return %loc{$request.method}($request);
+		    }
+        }
     }
 
     # For HEAD requests we should return a GET request. The decoder will delete the body

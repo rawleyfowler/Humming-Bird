@@ -1,0 +1,44 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Test::Util::ServerPort;
+use Cro::HTTP::Client;
+
+plan 9;
+
+my $body = 'abc';
+
+get('/abc/**', -> $request, $response {
+	$response.write($body);
+});
+
+get('/abc/john', -> $request, $response { $response.write('JOHN'); });
+
+get('/lol/bob/**', -> $request, $response { $response.write('LOL!') });
+
+my $port = get-unused-port;
+
+listen($port, :no-block);
+
+sleep 1; # Yes, yes, I know
+
+my $base-uri = "http://0.0.0.0:$port";
+
+my $client = Cro::HTTP::Client.new: :$base-uri;
+my $response;
+
+lives-ok({ $response = await $client.get('/abc/haha') }, 'Does request live OK?');
+ok $response, 'Was response a success?';
+is (await $response.body-text), 'abc', 'Is response body OK?';
+
+lives-ok({ $response = await $client.get('/abc/john') }, 'Does nested request live OK?');
+ok $response, 'Was nested request a success?';
+is (await $response.body-text), 'JOHN', 'Is nested response body OK?';
+
+lives-ok({ $response = await $client.get('/lol/bob/bobby/dude/abc') }, 'Does long request live OK?');
+ok $response, 'Was long response a success?';
+is (await $response.body-text), 'LOL!', 'Is long response body OK?';
+
+done-testing;
