@@ -116,6 +116,12 @@ some people get involved :D
 
 Please make sure you squash your branch, and name it accordingly before it gets merged!
 
+Before submitting any feature/code pull requests, ensure that the following passes:
+```bash
+cd Humming-Bird
+prove6 -I. t/ it/
+```
+
 ## License
 Humming-Bird is available under the MIT, you can view the license in the `LICENSE` file
 at the root of the project. For more information about the MIT, please click
