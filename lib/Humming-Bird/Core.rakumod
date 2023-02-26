@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.2';
+our constant $VERSION = '2.0.3';
 
 my constant $mime = MIME::Types.new;
 
@@ -74,9 +74,14 @@ class HTTPAction {
     has Str $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
-    method header(Str:D $name --> Str) {
+    multi method header(Str:D $name --> Str) {
         return Nil without %.headers{$name};
         %.headers{$name};
+    }
+
+    multi method header(Str:D $name, Str:D $value) {
+        %.headers{$name} = $value;
+        self;
     }
 
     method cookie(Str:D $name) {
@@ -240,8 +245,8 @@ class Response is HTTPAction is export {
 my constant $PARAM_IDX     = ':';
 my constant $CATCH_ALL_IDX = '**';
 
-class Route is Callable {
-    has Str:D $.path is required;
+class Route {
+    has Str:D $.path is required where *.starts-with: '/';
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
 	has Bool:D $.static = False;
@@ -249,7 +254,7 @@ class Route is Callable {
     method CALL-ME(Request:D $req) {
         my $res = Response.new(status => HTTP::Status(200));
         if @!middlewares.elems {
-            state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a(-> { &b }) });
+            state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a({ &b }) });
             # Finally, the main callback is added to the end of the chain
             &composition(&!callback.assuming($req, $res));
         } else {
@@ -285,6 +290,55 @@ sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
 
     %loc{$meth} := $route;
     $route; # Return the route.
+}
+
+class Router is export {
+    has Str:D $.root is required;
+    has @.routes;
+    has @!middlewares; # List of functions that type Request --> Request
+    has @!advice = { $^a }; # List of functions that type Response --> Response
+
+    method !add-route(Route:D $route, HTTPMethod:D $method) {
+        my &advice = [o] @!advice;
+        my &cb = $route.callback;
+        my $r = $route.clone(path => $!root ~ $route.path,
+                             middlewares => [|@!middlewares, |$route.middlewares],
+                             callback => { &advice(&cb($^a, $^b)) });
+        @!routes.push: $r;
+        delegate-route($r, $method);
+    }
+
+    method get(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), GET);
+    }
+
+    method post(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), POST);
+    }
+
+    method put(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), PUT);
+    }
+
+    method patch(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), PATCH);
+    }
+
+    method delete(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), DELETE);
+    }
+
+    method middleware(&middleware) {
+        @!middlewares.push: &middleware;
+    }
+
+    method advice(&advice) {
+        @!advice.push: &advice;
+    }
+
+    method TWEAK {
+        $!root = ('/' ~ $!root) unless $!root.starts-with: '/';
+    }
 }
 
 my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
@@ -414,16 +468,16 @@ sub routes(--> Hash:D) is export {
 }
 
 sub handle($raw-request) {
-    my Request $request = Request.encode($raw-request);
-    my Bool $keep-alive = False;
+    my Request:D $request = Request.encode($raw-request);
+    my Bool:D $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
 
     with $request.headers<Connection> {
-        $keep-alive = $_.lc eq 'keep-alive';
+        $keep-alive = .lc eq 'keep-alive';
     }
 
     # If the request is HEAD, we shouldn't return the body
-    my Bool $should-show-body = not ($request.method === HEAD);
+    my Bool:D $should-show-body = !($request.method === HEAD);
     # We need $should_show_body because the Content-Length header should remain on a HEAD request
     return (&advice(dispatch-request($request)).decode($should-show-body), $keep-alive);
 }
