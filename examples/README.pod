@@ -64,7 +64,7 @@
   my $router = Router.new(root => '/foo/bar');
 
   # Advice and middleware added will be appended to the routes as they are added.
-  $router.middleware(-> $request, $response, &next { $response.header('X-MyHeader', 'True') });
+  $router.middleware(-> $request, $response, &next { $response.header('X-MyHeader', 'True'); &next() });
   $router.advice(-> $response { say $response; $response }); 
 
   $router.get(-> $request, $response { $response.write('abc') }); # Registers a get route on /foo/bar
