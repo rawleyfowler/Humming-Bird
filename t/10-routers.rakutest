@@ -4,14 +4,16 @@ use Humming-Bird::Core;
 use HTTP::Status;
 use Test;
 
-plan 7;
+plan 9;
 
 my $router = Router.new(root => '/home');
 
 ok $router.advice(-> $response { $response.header('X-Test', 'abc') });
 ok $router.middleware(-> $request, $response, &next { $response.header('X-Middleware', '123'); &next() });
 ok $router.get('/abc', -> $request, $response { $response.write('abc') });
+ok $router.get(-> $request, $response { $response.write('123') });
 
+is routes{'/'}{'home'}{GET}(Request.new(path => '/home', method => GET, version => 'HTTP/1.1')).body, '123', 'Is root response body OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).status, HTTP::Status(200), 'Is response status OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).body, 'abc', 'Is response body OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Test'), 'abc', 'Is advice working?';

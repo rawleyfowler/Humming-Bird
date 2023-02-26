@@ -246,7 +246,7 @@ my constant $PARAM_IDX     = ':';
 my constant $CATCH_ALL_IDX = '**';
 
 class Route {
-    has Str:D $.path is required where *.starts-with: '/';
+    has Str:D $.path is required where { ($^a eq '') or $^a.starts-with('/') };
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
 	has Bool:D $.static = False;
