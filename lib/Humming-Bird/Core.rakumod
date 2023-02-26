@@ -308,24 +308,39 @@ class Router is export {
         delegate-route($r, $method);
     }
 
-    method get(Str:D $path, &callback, @middlewares = List.new) {
+    multi method get(Str:D $path, &callback, @middlewares = List.new) {
         self!add-route(Route.new(:$path, :&callback, :@middlewares), GET);
     }
+    multi method get(&callback, @middlewares = List.new) {
+        self.get('', &callback, @middlewares);
+    }
 
-    method post(Str:D $path, &callback, @middlewares = List.new) {
+    multi method post(Str:D $path, &callback, @middlewares = List.new) {
         self!add-route(Route.new(:$path, :&callback, :@middlewares), POST);
     }
+    multi method post(&callback, @middlewares = List.new) {
+        self.post('', &callback, @middlewares);
+    }
 
-    method put(Str:D $path, &callback, @middlewares = List.new) {
+    multi method put(Str:D $path, &callback, @middlewares = List.new) {
         self!add-route(Route.new(:$path, :&callback, :@middlewares), PUT);
     }
-
-    method patch(Str:D $path, &callback, @middlewares = List.new) {
-        self!add-route(Route.new(:$path, :&callback, :@middlewares), PATCH);
+    multi method put(&callback, @middlewares = List.new) {
+        self.put('', &callback, @middlewares);
     }
 
-    method delete(Str:D $path, &callback, @middlewares = List.new) {
+    multi method patch(Str:D $path, &callback, @middlewares = List.new) {
+        self!add-route(Route.new(:$path, :&callback, :@middlewares), PATCH);
+    }
+    multi method patch(&callback, @middlewares = List.new) {
+        self.patch('', &callback, @middlewares);
+    }
+
+    multi method delete(Str:D $path, &callback, @middlewares = List.new) {
         self!add-route(Route.new(:$path, :&callback, :@middlewares), DELETE);
+    }
+    multi method delete(&callback, @middlewares = List.new) {
+        self.delete('', &callback, @middlewares);
     }
 
     method middleware(&middleware) {
