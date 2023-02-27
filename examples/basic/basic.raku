@@ -109,8 +109,11 @@ error(X::AdHoc, -> $exn, $response { $response.status(500).write("Encountered an
 # After middleware, Response --> Response
 advice(&advice-logger);
 
+
 # Static content
 static('/static', '/var/www/static'); # Server static content on '/static', from '/var/www/static'
+
+get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); });
 
 # Routers
 my $router = Router.new(root => '/foo');
