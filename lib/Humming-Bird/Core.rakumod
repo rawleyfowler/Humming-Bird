@@ -153,6 +153,7 @@ class Request is HTTPAction is export {
 
 class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
+    has Request:D $.initiator is required;
 
     proto method cookie(|) {*}
     multi method cookie(Str:D $name, Cookie:D $value) {
@@ -252,7 +253,7 @@ class Route {
 	has Bool:D $.static = False;
 
     method CALL-ME(Request:D $req) {
-        my $res = Response.new(status => HTTP::Status(200));
+        my $res = Response.new(initiator => $req, status => HTTP::Status(200));
         if @!middlewares.elems {
             state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a({ &b }) });
             # Finally, the main callback is added to the end of the chain
@@ -356,15 +357,23 @@ class Router is export {
     }
 }
 
-my constant $NOT-FOUND          = Response.new(status => HTTP::Status(404)).html('404 Not Found');
-my constant $METHOD-NOT-ALLOWED = Response.new(status => HTTP::Status(405)).html('405 Method Not Allowed');
-my constant $BAD-REQUEST        = Response.new(status => HTTP::Status(400)).html('400 Bad request');
-my constant $SERVER-ERROR       = Response.new(status => HTTP::Status(500)).html('500 Server Error');
+my sub NOT-FOUND(Request:D $initiator --> Response:D) {
+    Response.new(:$initiator, status => HTTP::Status(404)).html('404 Not Found');
+}
+my sub METHOD-NOT-ALLOWED(Request:D $initiator --> Response:D) {
+    Response.new(:$initiator, status => HTTP::Status(405)).html('405 Method Not Allowed');
+}
+my sub BAD-REQUEST(Request:D $initiator --> Response:D) {
+    Response.new(:$initiator, status => HTTP::Status(400)).html('400 Bad request');
+}
+my sub SERVER-ERROR(Request:D $initiator --> Response:D) {
+    Response.new(:$initiator, status => HTTP::Status(500)).html('500 Server Error');
+}
 
 sub dispatch-request(Request:D $request --> Response:D) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
-        return $BAD-REQUEST;
+        return BAD-REQUEST($request);
     }
 
     my %loc := %ROUTES;
@@ -379,7 +388,7 @@ sub dispatch-request(Request:D $request --> Response:D) {
                 last;
             }
             
-            return $NOT-FOUND;
+            return NOT-FOUND($request);
         } elsif $possible-param && !%loc{$uri} {
             $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
             %loc := %loc{$possible-param};
@@ -400,21 +409,21 @@ sub dispatch-request(Request:D $request --> Response:D) {
         if %loc{GET}:exists {
             return %loc{GET}($request);
         } else {
-            return $METHOD-NOT-ALLOWED;
+            return METHOD-NOT-ALLOWED($request);
         }
     }
 
     # If we don't support the request method on this route.
     without %loc{$request.method} {
-        return $METHOD-NOT-ALLOWED;
+        return METHOD-NOT-ALLOWED($request);
     }
 
     my Response $response;
     try {
         # This is how we pass to error handlers.
         CATCH {
-            when %ERROR{.^name}:exists { return %ERROR{.^name}($_) }
-            default { return $SERVER-ERROR; }
+            when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
+            default { return SERVER-ERROR($request) }
         }
 
         $response = %loc{$request.method}($request);
@@ -454,7 +463,7 @@ multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) 
 		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
         my $file = $static-path.add($request.path.substr: $cut-size, $request.path.chars);
 
-        return $NOT-FOUND unless $file.e;
+        return NOT-FOUND($request) unless $file.e;
 
 		$response.file(~$file);
 	}

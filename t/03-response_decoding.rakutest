@@ -8,11 +8,12 @@ use HTTP::Status;
 
 plan 2;
 
-my $simple_response = Response.new(status => HTTP::Status(200));
+my $initiator = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
+my $simple_response = Response.new(:$initiator, status => HTTP::Status(200));
 
 ok $simple_response.decode, 'Does decode not die?';
 
 my %headers = 'Content-Length', 10, 'Encoding', 'utf-8';
-my $simple_response_headers = Response.new(status => HTTP::Status(200), :%headers);
+my $simple_response_headers = Response.new(:$initiator, status => HTTP::Status(200), :%headers);
 
 ok $simple_response_headers.decode, 'Does decode with headers not die?';
