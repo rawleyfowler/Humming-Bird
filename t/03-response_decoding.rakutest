@@ -6,7 +6,7 @@ use Test;
 use Humming-Bird::Core;
 use HTTP::Status;
 
-plan 2;
+plan 3;
 
 my $initiator = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
 my $simple_response = Response.new(:$initiator, status => HTTP::Status(200));
@@ -17,3 +17,5 @@ my %headers = 'Content-Length', 10, 'Encoding', 'utf-8';
 my $simple_response_headers = Response.new(:$initiator, status => HTTP::Status(200), :%headers);
 
 ok $simple_response_headers.decode, 'Does decode with headers not die?';
+$simple_response_headers.write('abc');
+is $simple_response_headers.decode.subbuf(*-3), Buf.new(<abc>.ords);

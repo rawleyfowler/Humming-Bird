@@ -4,7 +4,7 @@ use strict;
 use Test;
 use Humming-Bird::Core;
 
-plan 4;
+plan 8;
 
 my &cb = sub (Request $request, Response $response --> Response) {
     $response.html('Hello World');
@@ -18,5 +18,14 @@ is routes{'/'}{GET}.callback.raku, &cb.raku, 'Is callback OK?';
 my $req = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
 is routes{'/'}{GET}($req).headers{'Content-Type'}, 'text/html', 'Is response header content type OK?';
 is routes{'/'}{GET}($req).body, 'Hello World', 'Is response body OK?';
+
+post('/', &cb);
+is routes{'/'}{POST}.path, '/', 'Is route path OK?';
+is routes{'/'}{POST}.callback.raku, &cb.raku, 'Is callback OK?';
+
+$req = Request.new(path => '/', method => POST, version => 'HTTP/1.1');
+is routes{'/'}{POST}($req).headers{'Content-Type'}, 'text/html', 'Is response header content type OK?';
+is routes{'/'}{POST}($req).body, 'Hello World', 'Is response body OK?';
+
 
 # vim: expandtab shiftwidth=4

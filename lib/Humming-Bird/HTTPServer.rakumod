@@ -1,7 +1,3 @@
-=begin pod
-A simple async HTTP server that does its best to follow HTTP/1.1
-=end pod
-
 use v6;
 
 my constant \SOCKET-TIMEOUT = 5;
@@ -43,7 +39,7 @@ class Humming-Bird::HTTPServer is export {
                 whenever $.requests -> $request {
                     CATCH { default { .say } }
                     my ($response, $keep-alive) = &handler($request<data>.decode);
-                    $request<connection><socket>.print: $response;
+                    $request<connection><socket>.write: $response;
                     $request<connection><closed> = True unless $keep-alive;
                 }
             }
@@ -147,3 +143,7 @@ class Humming-Bird::HTTPServer is export {
 }
 
 # vim: expandtab shiftwidth=4
+
+=begin pod
+A simple async HTTP server that does its best to follow HTTP/1.1
+=end pod

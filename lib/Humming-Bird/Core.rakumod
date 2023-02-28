@@ -9,8 +9,9 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.3';
+our constant $VERSION = '2.0.5';
 
+# Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
 
 ### UTILITIES
@@ -23,15 +24,15 @@ sub now-rfc2822(--> Str) {
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
 # Convert a string to HTTP method, defaults to GET
-sub http_method_of_str(Str:D $method --> HTTPMethod) {
+sub http_method_of_str(Str:D $method --> HTTPMethod:D) {
     given $method.lc {
-        when 'get' { GET; }
+        when 'get' { GET }
         when 'post' { POST; }
-        when 'put' { PUT; }
-        when 'patch' { PATCH; }
-        when 'delete' { DELETE; }
-        when 'head' { HEAD; }
-        default { GET; }
+        when 'put' { PUT }
+        when 'patch' { PATCH }
+        when 'delete' { DELETE }
+        when 'head' { HEAD }
+        default { GET }
     }
 }
 
@@ -41,7 +42,6 @@ sub decode_headers(Str:D $header_block --> Map) {
 }
 
 subset SameSite of Str where 'Strict' | 'Lax';
-
 class Cookie is export {
     has Str $.name;
     has Str $.value;
@@ -49,10 +49,10 @@ class Cookie is export {
     has Str $.domain;
     has Str $.path where { .starts-with('/') orelse .throw } = '/';
     has SameSite $.same-site = 'Strict';
-    has Bool $.http-only = True;
-    has Bool $.secure = False;
+    has Bool:D $.http-only = True;
+    has Bool:D $.secure = False;
 
-    method decode(--> Str) {
+    method decode(--> Str:D) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
         ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Path=$.path", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '', $.domain // '')
         .grep({ .chars })
@@ -60,18 +60,18 @@ class Cookie is export {
     }
 
     submethod encode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
-        Map.new: $cookie-string
-                    .split(/\s/, :skip-empty)
-                    .map(*.split('=', :skip-empty))
-                    .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
-                    .flat;
+        Map.new: $cookie-string.split(/\s/, :skip-empty)
+                  .map(*.split('=', :skip-empty))
+                  .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
+                  .flat;
     }
 }
 
+my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
     has %.headers is Hash;
     has %.cookies is Hash;
-    has Str $.body is rw = "";
+    has Body:D $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
     multi method header(Str:D $name --> Str) {
@@ -79,12 +79,12 @@ class HTTPAction {
         %.headers{$name};
     }
 
-    multi method header(Str:D $name, Str:D $value) {
+    multi method header(Str:D $name, Str:D $value --> HTTPAction:D) {
         %.headers{$name} = $value;
         self;
     }
 
-    method cookie(Str:D $name) {
+    method cookie(Str:D $name --> Str) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }
@@ -197,17 +197,35 @@ class Response is HTTPAction is export {
 
     # Set a file to output.
     method file(Str:D $file --> Response) {
-        $.write($file.IO.slurp, $mime.type($file.IO.extension) // 'text/plain'); # TODO: Infer type of output based on file extension
+        my $text = $file.IO.slurp(:bin);
+        my $mime-type = $mime.type($file.IO.extension) // 'text/plain';
+        try {
+            CATCH {
+                $mime-type = 'application/octet-stream' if $mime-type eq 'text/plain';
+                return $.blob($text, $mime-type);
+            }
+            # Decode will fail if it's a binary file
+            $.write($text.decode, $mime-type);
+        }
     }
 
-    # Write a string to the body of the response, optionally provide a content type
-    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response) {
+    # Write a blob or buffer
+    method blob(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
         $.body = $body;
-        %.headers{'Content-Type'} = $content-type;
+        %.headers<Content-Type> = $content-type;
         self;
     }
-
-    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response) {
+    # Alias for blob
+    multi method write(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
+        self.blob($body, $content-type);
+    }
+    # Write a string to the body of the response, optionally provide a content type
+    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response:D) {
+        $.body = $body;
+        %.headers<Content-Type> = $content-type;
+        self;
+    }
+    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response:D) {
         self.write($body.Str ~ "\n" ~ $body.backtrace, $content-type);
         self.status(500);
         self;
@@ -215,15 +233,15 @@ class Response is HTTPAction is export {
 
     # Set content type of the response
     method content-type(Str:D $type --> Response) {
-        %.headers{'Content-Type'} = $type;
+        %.headers<Content-Type> = $type;
         self;
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool:D $with_body = True --> Str) {
+    method decode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
-
-        $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
+        
+        $out ~= sprintf("Content-Length: %d\r\n", $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars);
         $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
@@ -236,9 +254,17 @@ class Response is HTTPAction is export {
         }
 
         $out ~= "\r\n";
-        $out ~= "$.body" if $with_body;
 
-        $out;
+        return do given $.body {
+            when Str:D {
+                my $resp = $out ~ $.body;
+                $resp.encode.Buf if $with-body;
+            }
+
+            when Buf:D {
+                ($out.encode ~ $.body).Buf if $with-body;
+            }
+        }
     }
 }
 
@@ -248,9 +274,9 @@ my constant $CATCH_ALL_IDX = '**';
 
 class Route {
     has Str:D $.path is required where { ($^a eq '') or $^a.starts-with('/') };
+    has Bool:D $.static = False;
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
-	has Bool:D $.static = False;
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(initiator => $req, status => HTTP::Status(200));
@@ -274,7 +300,7 @@ sub split_uri(Str:D $uri --> List:D) {
     @uri_parts.prepend('/').List;
 }
 
-sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
+sub delegate-route(Route:D $route, HTTPMethod:D $meth --> Route:D) {
     die 'Route cannot be empty' unless $route.path;
     die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
@@ -296,10 +322,10 @@ sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
 class Router is export {
     has Str:D $.root is required;
     has @.routes;
-    has @!middlewares; # List of functions that type Request --> Request
+    has @!middlewares;
     has @!advice = { $^a }; # List of functions that type Response --> Response
 
-    method !add-route(Route:D $route, HTTPMethod:D $method) {
+    method !add-route(Route:D $route, HTTPMethod:D $method --> Route:D) {
         my &advice = [o] @!advice;
         my &cb = $route.callback;
         my $r = $route.clone(path => $!root ~ $route.path,
