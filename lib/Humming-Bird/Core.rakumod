@@ -235,7 +235,7 @@ class Response is HTTPAction is export {
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool:D $with-body = True) {
+    method decode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
         
         $out ~= sprintf("Content-Length: %d\r\n", $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars);
@@ -252,13 +252,14 @@ class Response is HTTPAction is export {
 
         $out ~= "\r\n";
 
-        do given $.body {
+        return do given $.body {
             when Str:D {
-                $out ~ $.body if $with-body;
+                my $resp = $out ~ $.body;
+                $resp.encode.Buf if $with-body;
             }
 
             when Buf:D {
-                $out.encode ~ $.body if $with-body;
+                ($out.encode ~ $.body).Buf if $with-body;
             }
         }
     }

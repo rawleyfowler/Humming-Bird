@@ -39,15 +39,7 @@ class Humming-Bird::HTTPServer is export {
                 whenever $.requests -> $request {
                     CATCH { default { .say } }
                     my ($response, $keep-alive) = &handler($request<data>.decode);
-                    given $response {
-                        when Str:D {
-                            $request<connection><socket>.print: $response;
-                        }
-
-                        when Buf:D {
-                            $request<connection><socket>.write: $response;
-                        }
-                    }
+                    $request<connection><socket>.write: $response;
                     $request<connection><closed> = True unless $keep-alive;
                 }
             }
