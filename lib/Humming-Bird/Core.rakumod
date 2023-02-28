@@ -205,21 +205,25 @@ class Response is HTTPAction is export {
                 $mime-type = 'application/octet-stream' if $mime-type eq 'text/plain';
                 return $.blob($text, $mime-type);
             }
-
+            # Decode will fail if it's a binary file
             $.write($text.decode, $mime-type);
         }
     }
 
+    # Write a blob or buffer
     method blob(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
         $.body = $body;
-        %.headers{'Content-Type'} = $content-type;
+        %.headers<Content-Type> = $content-type;
         self;
     }
-
+    # Alias for blob
+    multi method write(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
+        self.blob($body, $content-type);
+    }
     # Write a string to the body of the response, optionally provide a content type
     multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response:D) {
         $.body = $body;
-        %.headers{'Content-Type'} = $content-type;
+        %.headers<Content-Type> = $content-type;
         self;
     }
     multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response:D) {
@@ -230,7 +234,7 @@ class Response is HTTPAction is export {
 
     # Set content type of the response
     method content-type(Str:D $type --> Response) {
-        %.headers{'Content-Type'} = $type;
+        %.headers<Content-Type> = $type;
         self;
     }
 
@@ -271,9 +275,9 @@ my constant $CATCH_ALL_IDX = '**';
 
 class Route {
     has Str:D $.path is required where { ($^a eq '') or $^a.starts-with('/') };
+    has Bool:D $.static = False;
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
-	has Bool:D $.static = False;
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(initiator => $req, status => HTTP::Status(200));
@@ -319,7 +323,7 @@ sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
 class Router is export {
     has Str:D $.root is required;
     has @.routes;
-    has @!middlewares; # List of functions that type Request --> Request
+    has @!middlewares;
     has @!advice = { $^a }; # List of functions that type Response --> Response
 
     method !add-route(Route:D $route, HTTPMethod:D $method) {
