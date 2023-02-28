@@ -68,10 +68,11 @@ class Cookie is export {
     }
 }
 
+my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
     has %.headers is Hash;
     has %.cookies is Hash;
-    has Str $.body is rw = "";
+    has Body:D $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
     multi method header(Str:D $name --> Str) {
@@ -197,17 +198,31 @@ class Response is HTTPAction is export {
 
     # Set a file to output.
     method file(Str:D $file --> Response) {
-        $.write($file.IO.slurp, $mime.type($file.IO.extension) // 'text/plain'); # TODO: Infer type of output based on file extension
+        my $text = $file.IO.slurp(:bin);
+        my $mime-type = $mime.type($file.IO.extension) // 'text/plain';
+        try {
+            CATCH {
+                $mime-type = 'application/octet-stream' if $mime-type eq 'text/plain';
+                return $.blob($text, $mime-type);
+            }
+
+            $.write($text.decode, $mime-type);
+        }
     }
 
-    # Write a string to the body of the response, optionally provide a content type
-    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response) {
+    method blob(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
         $.body = $body;
         %.headers{'Content-Type'} = $content-type;
         self;
     }
 
-    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response) {
+    # Write a string to the body of the response, optionally provide a content type
+    multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response:D) {
+        $.body = $body;
+        %.headers{'Content-Type'} = $content-type;
+        self;
+    }
+    multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response:D) {
         self.write($body.Str ~ "\n" ~ $body.backtrace, $content-type);
         self.status(500);
         self;
@@ -220,10 +235,10 @@ class Response is HTTPAction is export {
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool:D $with_body = True --> Str) {
+    method decode(Bool:D $with-body = True) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
-
-        $out ~= sprintf("Content-Length: %d\r\n", $.body.chars);
+        
+        $out ~= sprintf("Content-Length: %d\r\n", $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars);
         $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
@@ -236,9 +251,16 @@ class Response is HTTPAction is export {
         }
 
         $out ~= "\r\n";
-        $out ~= "$.body" if $with_body;
 
-        $out;
+        do given $.body {
+            when Str:D {
+                $out ~ $.body if $with-body;
+            }
+
+            when Buf:D {
+                $out.encode ~ $.body if $with-body;
+            }
+        }
     }
 }
 
