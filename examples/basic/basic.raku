@@ -104,13 +104,16 @@ get('/throws-error', -> $request, $response {
 });
 
 # Error handler
-error(X::AdHoc, -> $exn { Response.new(status => HTTP::Status(500)).write("Encountered an error.") });
+error(X::AdHoc, -> $exn, $response { $response.status(500).write("Encountered an error. <br> $exn") });
 
 # After middleware, Response --> Response
 advice(&advice-logger);
 
+
 # Static content
 static('/static', '/var/www/static'); # Server static content on '/static', from '/var/www/static'
+
+get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); });
 
 # Routers
 my $router = Router.new(root => '/foo');

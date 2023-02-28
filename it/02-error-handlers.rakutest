@@ -14,8 +14,8 @@ get('/', -> $request, $response {
 	$response.write('body');
 });
 
-error(X::AdHoc, sub ($exception) {
-	return Response.new(status => HTTP::Status(204)).write($exception.Str);
+error(X::AdHoc, sub ($exception, $response) {
+	return $response.status(204).write($exception.Str);
 });
 
 my $port = get-unused-port;
