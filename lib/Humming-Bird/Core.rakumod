@@ -11,6 +11,7 @@ unit module Humming-Bird::Core;
 
 our constant $VERSION = '2.0.5';
 
+# Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
 
 ### UTILITIES
@@ -23,15 +24,15 @@ sub now-rfc2822(--> Str) {
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
 # Convert a string to HTTP method, defaults to GET
-sub http_method_of_str(Str:D $method --> HTTPMethod) {
+sub http_method_of_str(Str:D $method --> HTTPMethod:D) {
     given $method.lc {
-        when 'get' { GET; }
+        when 'get' { GET }
         when 'post' { POST; }
-        when 'put' { PUT; }
-        when 'patch' { PATCH; }
-        when 'delete' { DELETE; }
-        when 'head' { HEAD; }
-        default { GET; }
+        when 'put' { PUT }
+        when 'patch' { PATCH }
+        when 'delete' { DELETE }
+        when 'head' { HEAD }
+        default { GET }
     }
 }
 
@@ -41,7 +42,6 @@ sub decode_headers(Str:D $header_block --> Map) {
 }
 
 subset SameSite of Str where 'Strict' | 'Lax';
-
 class Cookie is export {
     has Str $.name;
     has Str $.value;
@@ -49,10 +49,10 @@ class Cookie is export {
     has Str $.domain;
     has Str $.path where { .starts-with('/') orelse .throw } = '/';
     has SameSite $.same-site = 'Strict';
-    has Bool $.http-only = True;
-    has Bool $.secure = False;
+    has Bool:D $.http-only = True;
+    has Bool:D $.secure = False;
 
-    method decode(--> Str) {
+    method decode(--> Str:D) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
         ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Path=$.path", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '', $.domain // '')
         .grep({ .chars })
@@ -60,11 +60,10 @@ class Cookie is export {
     }
 
     submethod encode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
-        Map.new: $cookie-string
-                    .split(/\s/, :skip-empty)
-                    .map(*.split('=', :skip-empty))
-                    .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
-                    .flat;
+        Map.new: $cookie-string.split(/\s/, :skip-empty)
+                  .map(*.split('=', :skip-empty))
+                  .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
+                  .flat;
     }
 }
 
@@ -80,12 +79,12 @@ class HTTPAction {
         %.headers{$name};
     }
 
-    multi method header(Str:D $name, Str:D $value) {
+    multi method header(Str:D $name, Str:D $value --> HTTPAction:D) {
         %.headers{$name} = $value;
         self;
     }
 
-    method cookie(Str:D $name) {
+    method cookie(Str:D $name --> Str) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }
@@ -301,7 +300,7 @@ sub split_uri(Str:D $uri --> List:D) {
     @uri_parts.prepend('/').List;
 }
 
-sub delegate-route(Route:D $route, HTTPMethod:D $meth) {
+sub delegate-route(Route:D $route, HTTPMethod:D $meth --> Route:D) {
     die 'Route cannot be empty' unless $route.path;
     die "Invalid route: { $route.path }" unless $route.path.contains('/');
 
@@ -326,7 +325,7 @@ class Router is export {
     has @!middlewares;
     has @!advice = { $^a }; # List of functions that type Response --> Response
 
-    method !add-route(Route:D $route, HTTPMethod:D $method) {
+    method !add-route(Route:D $route, HTTPMethod:D $method --> Route:D) {
         my &advice = [o] @!advice;
         my &cb = $route.callback;
         my $r = $route.clone(path => $!root ~ $route.path,
