@@ -9,14 +9,14 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.5';
+our constant $VERSION = '2.0.6';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
 
 ### UTILITIES
-sub trim-utc-for-gmt(Str:D $utc --> Str) { $utc.subst(/"+0000"/, 'GMT') }
-sub now-rfc2822(--> Str) {
+sub trim-utc-for-gmt(Str:D $utc --> Str:D) { $utc.subst(/"+0000"/, 'GMT') }
+sub now-rfc2822(--> Str:D) {
     trim-utc-for-gmt: DateTime.now(formatter => DateTime::Format::RFC2822.new()).utc.Str;
 }
 
@@ -37,7 +37,7 @@ sub http_method_of_str(Str:D $method --> HTTPMethod:D) {
 }
 
 # Converts a string of headers "KEY: VALUE\r\nKEY: VALUE\r\n..." to a map of headers.
-sub decode_headers(Str:D $header_block --> Map) {
+sub decode_headers(Str:D $header_block --> Map:D) {
     Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
 }
 
@@ -449,9 +449,22 @@ sub dispatch-request(Request:D $request --> Response:D) {
         # This is how we pass to error handlers.
         CATCH {
             when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
-            default { return SERVER-ERROR($request) }
-        }
+            default {
+                my $err = $_;
+                with %*ENV<HUMMING_BIRD_ENV> {
+                    given .lc {
+                        when ('prod' | 'production') {
+                            return SERVER-ERROR($request)
+                        }
 
+                        default {
+                            return SERVER-ERROR($request).html("500 Internal Server<br>$err");
+                        }
+                    }
+                }
+            }
+        }
+        
         $response = %loc{$request.method}($request);
         return $response;
     }

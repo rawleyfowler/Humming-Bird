@@ -1,4 +1,5 @@
-{ "auth": "zef:rawleyfowler",
+{
+    "auth": "zef:rawleyfowler",
 	"authors": [
 		"Rawley Fowler"
 	],
@@ -38,5 +39,5 @@
 		"Test::Util::ServerPort",
 		"Cro::HTTP::Client"
 	],
-	"version": "2.0.5"
+	"version": "2.0.6"
 }
