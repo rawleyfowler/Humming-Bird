@@ -188,11 +188,13 @@ class Response is HTTPAction is export {
 
     method html(Str:D $body --> Response) {
         $.write($body, 'text/html');
+        self;
     }
 
     # Write a JSON string to the body of the request
     method json(Str:D $body --> Response) {
         $.write($body, 'application/json');
+        self;
     }
 
     # Set a file to output.
@@ -207,6 +209,7 @@ class Response is HTTPAction is export {
             # Decode will fail if it's a binary file
             $.write($text.decode, $mime-type);
         }
+        self;
     }
 
     # Write a blob or buffer
@@ -255,7 +258,7 @@ class Response is HTTPAction is export {
 
         $out ~= "\r\n";
 
-        return do given $.body {
+        do given $.body {
             when Str:D {
                 my $resp = $out ~ $.body;
                 $resp.encode.Buf if $with-body;
@@ -443,8 +446,7 @@ sub dispatch-request(Request:D $request --> Response:D) {
     without %loc{$request.method} {
         return METHOD-NOT-ALLOWED($request);
     }
-
-    my Response $response;
+    
     try {
         # This is how we pass to error handlers.
         CATCH {
@@ -452,21 +454,15 @@ sub dispatch-request(Request:D $request --> Response:D) {
             default {
                 my $err = $_;
                 with %*ENV<HUMMING_BIRD_ENV> {
-                    given .lc {
-                        when ('prod' | 'production') {
-                            return SERVER-ERROR($request)
-                        }
-
-                        default {
-                            return SERVER-ERROR($request).html("500 Internal Server<br>$err");
-                        }
+                    if .lc ~~ 'prod' | 'production' {
+                        return SERVER-ERROR($request);
                     }
                 }
+                return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
             }
         }
         
-        $response = %loc{$request.method}($request);
-        return $response;
+        return %loc{$request.method}($request);
     }
 }
 
