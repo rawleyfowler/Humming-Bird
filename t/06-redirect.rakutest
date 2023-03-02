@@ -4,15 +4,21 @@ use Test;
 use Humming-Bird::Core;
 use HTTP::Status;
 
-plan 4;
-
-get('/bob', -> $request, $response {
-  $response.redirect('/home');
-});
+plan 6;
 
 my $req = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
-is routes{'/'}{'bob'}{GET}($req).header('Location'), '/home', 'Is redirect location OK?';
-is routes{'/'}{'bob'}{GET}($req).status, HTTP::Status(307), 'Is redirect status OK?';
+
+get('/john', sub ($request, $response) { $response.redirect('/home') });
+
+is routes{'/'}{'john'}{GET}($req).header('Location'), '/home', 'Is redirect location OK?';
+is routes{'/'}{'john'}{GET}($req).status, HTTP::Status(303), 'Is redirect status OK?';
+
+get('/bob', -> $request, $response {
+  $response.redirect('/home', :temporary);
+});
+
+is routes{'/'}{'bob'}{GET}($req).header('Location'), '/home', 'Is temporary redirect location OK?';
+is routes{'/'}{'bob'}{GET}($req).status, HTTP::Status(307), 'Is temporary redirect status OK?';
 
 get('/toby', -> $request, $response {
   $response.redirect('/home', :permanent);
