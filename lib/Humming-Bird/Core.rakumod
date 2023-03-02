@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.6';
+our constant $VERSION = '2.0.7';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -179,10 +179,13 @@ class Response is HTTPAction is export {
     }
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
-    method redirect(Str:D $to, :$permanent) {
+    method redirect(Str:D $to, :$permanent, :$temporary) {
         %.headers<Location> = $to;
-        self.status(307) without $permanent;
-        self.status(308) with $permanent;
+        self.status(303);
+
+        self.status(307) if $temporary;
+        self.status(308) if $permanent;
+        
         self;
     }
 
