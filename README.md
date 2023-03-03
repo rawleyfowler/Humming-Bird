@@ -10,6 +10,24 @@ Humming-Bird comes with what you need to quickly, and efficiently spin up REST A
 
 Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as httpd or NGiNX.
 
+## How to install
+Make sure you have [zef](https://github.com/ugexe/zef) installed.
+
+#### Install latest
+```bash
+zef -v install https://github.com/rawleyfowler/Humming-Bird.git
+```
+
+#### Install stable
+```bash
+zef install Humming-Bird
+```
+
+## Performance
+Around ~20% faster than Ruby's `Sinatra`, but still providing a majority of it's features!
+
+See [this](https://github.com/rawleyfowler/Humming-Bird/issues/43#issuecomment-1454252501) for a more detailed performance review.
+
 ## Examples
 
 #### Simple example:
@@ -94,19 +112,6 @@ More examples can be found in the [examples](https://github.com/rawleyfowler/Hum
 - This project is in active development, things will break.
 - You may run into bugs.
 - This project is largely maintained by one person.
-
-## How to install
-Make sure you have [zef](https://github.com/ugexe/zef) installed.
-
-#### Install latest
-```bash
-zef -v install https://github.com/rawleyfowler/Humming-Bird.git
-```
-
-#### Install stable
-```bash
-zef install Humming-Bird
-```
 
 ## Contributing
 All contributions are encouraged! I know the Raku community is amazing, so I hope to see
