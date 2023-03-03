@@ -13,22 +13,21 @@ class Humming-Bird::HTTPServer is export {
     method !timeout {
         start {
             my Lock $lock .= new;
-            loop {
-                sleep 1;
-
-                CATCH { default { warn $_ } }
-
-                $lock.protect({
-                    @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
-                    for @!connections.grep({ now - $_<last-active> >= SOCKET-TIMEOUT }) {
-                        CATCH { default { warn $_ } }
-                        try {
-                            $_<closed> = True;
-                            $_<socket>.write(Blob.new);
-                            $_<socket>.close;
+            react {
+                whenever Supply.interval(1) {
+                    CATCH { default { warn $_ } }
+                    $lock.protect({
+                        @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
+                        for @!connections.grep({ now - $_<last-active> >= SOCKET-TIMEOUT }) {
+                            CATCH { default { warn $_ } }
+                            try {
+                                $_<closed> = True;
+                                $_<socket>.write(Blob.new);
+                                $_<socket>.close;
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
     }
@@ -112,7 +111,7 @@ class Humming-Bird::HTTPServer is export {
                     last-active => now
                 }
 
-                @!connections.push: %connection-map;
+                Lock.new.protect({ @!connections.push: %connection-map });
 
                 whenever $connection.Supply: :bin -> $bytes {
                     my Buf $data .= new;
