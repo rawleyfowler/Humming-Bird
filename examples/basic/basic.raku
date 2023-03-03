@@ -115,8 +115,6 @@ static('/static', '/var/www/static'); # Server static content on '/static', from
 
 get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); });
 
-get('/kekerino', sub ($request, $response) { my %mp; return $response.html(%mp<abc>); });
-
 # Routers
 my $router = Router.new(root => '/foo');
 $router.middleware(&middleware-logger); # Append this middleware to all proceeding routes
