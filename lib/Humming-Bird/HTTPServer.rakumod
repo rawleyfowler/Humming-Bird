@@ -19,11 +19,12 @@ class Humming-Bird::HTTPServer is export {
                     $lock.protect({
                         @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
                         for @!connections.grep({ now - $_<last-active> >= SOCKET-TIMEOUT }) {
-                            CATCH { default { warn $_ } }
                             try {
                                 $_<closed> = True;
                                 $_<socket>.write(Blob.new);
                                 $_<socket>.close;
+
+                                CATCH { default { warn $_ } }
                             }
                         }
                     });
@@ -89,7 +90,6 @@ class Humming-Bird::HTTPServer is export {
                         }
                     }
                 }
-                default {}
             }
         }
 
@@ -99,6 +99,7 @@ class Humming-Bird::HTTPServer is export {
 
     method listen(&handler) {
         constant $DEFAULT-RN = Buf.new("\r\n\r\n".encode);
+
         react {
             say "Humming-Bird listening on port http://localhost:$.port";
 
@@ -114,10 +115,9 @@ class Humming-Bird::HTTPServer is export {
                 Lock.new.protect({ @!connections.push: %connection-map });
 
                 whenever $connection.Supply: :bin -> $bytes {
-                    my Buf $data .= new;
-                    my Int $idx   = 0;
+                    my Buf   $data .= new;
+                    my Int:D $idx   = 0;
                     my $req;
-
 
                     CATCH { default { .say } }
                     $data ~= $bytes;
