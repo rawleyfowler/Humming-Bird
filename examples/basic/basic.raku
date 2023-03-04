@@ -124,6 +124,7 @@ $router.post(-> $request, $response { $response.write('foo post!') });
 $router.get('/bar', -> $request, $response { $response.write('foo bar') }); # Registered on /foo/bar
 
 # Run the application
-listen(9000);
+listen(9000, timeout => 3); # You can set timeout, to a value you'd like (this is how long keep-alive sockets are kept open) default is 5 seconds.
+# You can also set the :no-block adverb to stop the call from blocking, and be run on the task scheduler.
 
 # vim: expandtab shiftwidth=4
