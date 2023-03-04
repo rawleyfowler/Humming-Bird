@@ -1,24 +1,23 @@
 use v6;
 
-my constant \SOCKET-TIMEOUT = 5;
-
 # This code is based on the excellent code by the Raku community with a few adjustments and code style changes.
 # https://github.com/raku-community-modules/HTTP-Server-Async
 
 class Humming-Bird::HTTPServer is export {
-    has Int $.port = 8080;
-    has Channel $.requests .= new;
+    has Int:D $.port = 8080;
+    has Int:D $.timeout is required;
+    has Channel:D $.requests .= new;
+    has Lock $.lock .= new;
     has @!connections;
 
     method !timeout {
         start {
-            my Lock $lock .= new;
             react {
                 whenever Supply.interval(1) {
                     CATCH { default { warn $_ } }
-                    $lock.protect({
+                    $!lock.protect({
                         @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
-                        for @!connections.grep({ now - $_<last-active> >= SOCKET-TIMEOUT }) {
+                        for @!connections.grep({ now - $_<last-active> >= $!timeout }) {
                             try {
                                 $_<closed> = True;
                                 $_<socket>.write(Blob.new);
@@ -112,7 +111,7 @@ class Humming-Bird::HTTPServer is export {
                     last-active => now
                 }
 
-                Lock.new.protect({ @!connections.push: %connection-map });
+                $!lock.protect({ @!connections.push: %connection-map });
 
                 whenever $connection.Supply: :bin -> $bytes {
                     my Buf   $data .= new;

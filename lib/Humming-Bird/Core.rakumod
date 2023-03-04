@@ -544,10 +544,11 @@ sub handle($raw-request) {
     return (&advice(dispatch-request($request)).decode($should-show-body), $keep-alive);
 }
 
-sub listen(Int:D $port, :$no-block) is export {
-    my $server = HTTPServer.new(:$port);
+sub listen(Int:D $port, :$no-block, :$timeout) is export {
+    my $timeout-real = $timeout // 5;
+    my $server = HTTPServer.new(:$port, timeout => $timeout-real);
     if $no-block {
-        do start {
+        start {
             $server.listen(&handle);
         }
     } else {
