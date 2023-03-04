@@ -3,6 +3,9 @@ use v6;
 # This code is based on the excellent code by the Raku community with a few adjustments and code style changes.
 # https://github.com/raku-community-modules/HTTP-Server-Async
 
+my constant $DEFAULT-RN = "\r\n\r\n".encode.Buf;
+my constant $RN = "\r\n".encode.Buf;
+
 class Humming-Bird::HTTPServer is export {
     has Int:D $.port = 8080;
     has Int:D $.timeout is required;
@@ -67,10 +70,9 @@ class Humming-Bird::HTTPServer is export {
                     if $value.chomp.lc.index('chunked') !~~ Nil {
                         my Int $i;
                         my Int $b;
-                        my Buf $rn .= new("\r\n".encode);
                         while $i < $data.elems {
-                            $i++ while $data[$i] != $rn[0]
-                            && $data[$i+1] != $rn[1]
+                            $i++ while $data[$i] != $RN[0]
+                            && $data[$i+1] != $RN[1]
                             && $i + 1 < $data.elems;
 
                             last if $i + 1 >= $data.elems;
@@ -97,7 +99,6 @@ class Humming-Bird::HTTPServer is export {
     }
 
     method listen(&handler) {
-        constant $DEFAULT-RN = Buf.new("\r\n\r\n".encode);
 
         react {
             say "Humming-Bird listening on port http://localhost:$.port";
