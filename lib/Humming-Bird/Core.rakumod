@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.7';
+our constant $VERSION = '2.0.8';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
