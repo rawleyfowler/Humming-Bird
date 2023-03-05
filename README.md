@@ -1,6 +1,11 @@
-# Humming-Bird
+<div style="text-align: center;">
+<h1>Humming-Bird</h1>
+
+<img src="https://user-images.githubusercontent.com/75388349/222969311-216081eb-fe47-4f97-bc49-d52fc8750a24.svg" />
+
 ![Zef Badge](https://raku.land/zef:rawleyfowler/Humming-Bird/badges/version?)
 [![SparrowCI](https://ci.sparrowhub.io/project/gh-rawleyfowler-Humming-Bird/badge)](https://ci.sparrowhub.io)
+</div>
 
 Humming-Bird is a simple, composable, and performant web-framework for Raku on MoarVM.
 Humming-Bird was inspired mainly by [Sinatra](https://sinatrarb.com), and [Express](https://expressjs.com), and tries to keep
