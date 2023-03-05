@@ -1,13 +1,18 @@
-# Humming-Bird
+<div style="text-align: center;">
+<h1>Humming-Bird</h1>
+
+<img src="https://user-images.githubusercontent.com/75388349/222969311-216081eb-fe47-4f97-bc49-d52fc8750a24.svg" />
+
 ![Zef Badge](https://raku.land/zef:rawleyfowler/Humming-Bird/badges/version?)
 [![SparrowCI](https://ci.sparrowhub.io/project/gh-rawleyfowler-Humming-Bird/badge)](https://ci.sparrowhub.io)
+</div>
 
 Humming-Bird is a simple, composable, and performant web-framework for Raku on MoarVM.
 Humming-Bird was inspired mainly by [Sinatra](https://sinatrarb.com), and [Express](https://expressjs.com), and tries to keep
 things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
 
 Humming-Bird provides a rich API for crafting HTTP responses, as well as a few nice quality-of-life features like
-infered data encoding, meaning you shouldn't ever have to parse JSON to a Raku map again, a simple functional interface
+inferred data encoding, meaning you shouldn't ever have to parse JSON to a Raku map again, a simple functional interface
 allowing users to compose functions together to create their routes, middlewares, and advice, a simple error handling system
 for ensuring stability, and crazy fast routing system.
 
@@ -75,7 +80,7 @@ post('/users', -> $request, $response {
     my %user = $request.content; # Different from $request.body, $request.content will do its best to encode the data to a Map.
     if my-user-validation-logic(%user) { # Validate somehow, i'll leave that up to you.
         %users{%user<name>} = %user;
-        $response.status(204); # 204 created
+        $response.status(201); # 201 created
     } else {
         $response.status(400).html('Bad request');
     }
