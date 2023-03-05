@@ -24,7 +24,7 @@ sub now-rfc2822(--> Str:D) {
 enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
 
 # Convert a string to HTTP method, defaults to GET
-sub http_method_of_str(Str:D $method --> HTTPMethod:D) {
+sub http-method-of-str(Str:D $method --> HTTPMethod:D) {
     given $method.lc {
         when 'get' { GET }
         when 'post' { POST; }
@@ -90,12 +90,36 @@ class HTTPAction {
     }
 }
 
+my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
+    $urlencoded.split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
+}
+
+class X::Humming-Bird::BadBody is X::AdHoc { }
+
 class Request is HTTPAction is export {
     has Str $.path is required;
     has HTTPMethod $.method is required;
     has Str $.version is required;
     has %.params;
     has %.query;
+
+    # Attempts to parse the body to a Map or return an empty map if we can't decode it
+    method content(--> Map:D) {
+        use JSON::Fast;
+
+        return Map.new unless self.header('Content-Type');
+
+        try {
+            CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return Map.new } }
+            if self.header('Content-Type').ends-with: 'json' {
+                return from-json(self.body).Map;
+            } elsif self.header('Content-Type').ends-with: 'urlencoded' {
+                return parse-urlencoded(self.body);
+            }
+        }
+        
+        Map.new;
+    }
 
     method param(Str:D $param --> Str) {
         return Nil without %!params{$param};
@@ -113,10 +137,10 @@ class Request is HTTPAction is export {
         my @lines = $raw-request.lines;
         my ($method_raw, $path, $version) = @lines.head.split(' ');
 
-        my $method = http_method_of_str($method_raw);
+        my $method = http-method-of-str($method_raw);
 
         # Find query params
-        my %query is Hash;
+        my %query;
         if @lines[0] ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
             %query = Map.new($<>.map({ .split('=') }).flat);
             $path = $path.split('?', :skip-empty)[0];
@@ -545,7 +569,7 @@ sub handle($raw-request) {
 }
 
 sub listen(Int:D $port, :$no-block, :$timeout) is export {
-    my $timeout-real = $timeout // 5;
+    my $timeout-real = $timeout // 3; # Sockets are closed after 3 seconds of inactivity
     my $server = HTTPServer.new(:$port, timeout => $timeout-real);
     if $no-block {
         start {

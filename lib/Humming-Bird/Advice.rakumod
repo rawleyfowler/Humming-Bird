@@ -24,6 +24,10 @@ use Humming-Bird::Core;
 unit module Humming-Bird::Advice;
 
 sub advice-logger(Response:D $response --> Response) is export {
-	say "{ $response.status.Int } { $response.status } | { $response.initiator.path } | { $response.header('Content-Type') }";
+    if $response.header('Content-Type') {
+	    say "{ $response.status.Int } { $response.status } | { $response.initiator.path } | { $response.header('Content-Type') }";
+    } else {
+	    say "{ $response.status.Int } { $response.status } | { $response.initiator.path } | no-content";
+    }
 	$response;
 }

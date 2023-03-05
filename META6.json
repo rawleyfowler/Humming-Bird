@@ -8,7 +8,8 @@
 	"depends": [
 		"HTTP::Status",
 		"DateTime::Format",
-		"MIME::Types"
+		"MIME::Types",
+        "JSON::Fast"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",

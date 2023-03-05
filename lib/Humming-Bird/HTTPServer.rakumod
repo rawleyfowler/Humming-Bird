@@ -10,7 +10,7 @@ class Humming-Bird::HTTPServer is export {
     has Int:D $.port = 8080;
     has Int:D $.timeout is required;
     has Channel:D $.requests .= new;
-    has Lock $.lock .= new;
+    has Lock $!lock .= new;
     has @!connections;
 
     method !timeout {
