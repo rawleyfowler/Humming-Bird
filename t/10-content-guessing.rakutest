@@ -2,7 +2,7 @@ use v6.d;
 use Humming-Bird::Core;
 use Test;
 
-plan 3;
+plan 4;
 
 my $request = Request.new(body => '{ "foo": "bar" }', path => '/home', method => GET, version => 'HTTP/1.1');
 $request.header('Content-Type', 'application/json');
@@ -17,5 +17,9 @@ is $request.content, Map.new('bob', '123', 'john', 'abc'), 'Is urlencoded conten
 $request.body = 'tom=abc&bob=123,456,789&john=abc';
 
 is $request.content, Map.new('tom', 'abc', 'bob' => (123,456,789), 'john', 'abc'), 'Is complex urlencoded content decoding OK?';
+
+$request.body = 'tom=abc&lob=123';
+
+is $request.content<lob>, '123', 'Is urlencoded re-evaluated on change?';
 
 done-testing;

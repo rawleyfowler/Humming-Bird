@@ -94,31 +94,35 @@ my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
     $urlencoded.split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
 }
 
-class X::Humming-Bird::BadBody is X::AdHoc { }
-
 class Request is HTTPAction is export {
     has Str $.path is required;
     has HTTPMethod $.method is required;
     has Str $.version is required;
     has %.params;
     has %.query;
+    has $!content;
 
     # Attempts to parse the body to a Map or return an empty map if we can't decode it
     method content(--> Map:D) {
         use JSON::Fast;
 
+        state $prev-body = $.body;
+        
+        return $!content if $!content && ($prev-body eq $.body);
         return Map.new unless self.header('Content-Type');
 
         try {
-            CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return Map.new } }
+            CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new) } }
             if self.header('Content-Type').ends-with: 'json' {
-                return from-json(self.body).Map;
+                $!content = from-json(self.body).Map;
             } elsif self.header('Content-Type').ends-with: 'urlencoded' {
-                return parse-urlencoded(self.body);
+                $!content = parse-urlencoded(self.body);
             }
+
+            return $!content;
         }
-        
-        Map.new;
+
+        $!content = Map.new;
     }
 
     method param(Str:D $param --> Str) {
