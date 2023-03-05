@@ -1,0 +1,21 @@
+use v6.d;
+use Humming-Bird::Core;
+use Test;
+
+plan 3;
+
+my $request = Request.new(body => '{ "foo": "bar" }', path => '/home', method => GET, version => 'HTTP/1.1');
+$request.header('Content-Type', 'application/json');
+
+is $request.content, { foo => 'bar' }, 'Is JSON content decoding OK?';
+
+$request = Request.new(body => 'bob=123&john=abc', path => '/home', method => GET, version => 'HTTP/1.1');
+$request.header('Content-Type', 'application/urlencoded');
+
+is $request.content, Map.new('bob', '123', 'john', 'abc'), 'Is urlencoded content decoding OK?';
+
+$request.body = 'tom=abc&bob=123,456,789&john=abc';
+
+is $request.content, Map.new('tom', 'abc', 'bob' => (123,456,789), 'john', 'abc'), 'Is complex urlencoded content decoding OK?';
+
+done-testing;
