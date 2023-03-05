@@ -7,7 +7,7 @@ Humming-Bird was inspired mainly by [Sinatra](https://sinatrarb.com), and [Expre
 things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
 
 Humming-Bird provides a rich API for crafting HTTP responses, as well as a few nice quality-of-life features like
-infered data encoding, meaning you shouldn't ever have to parse JSON to a Raku map again, a simple functional interface
+inferred data encoding, meaning you shouldn't ever have to parse JSON to a Raku map again, a simple functional interface
 allowing users to compose functions together to create their routes, middlewares, and advice, a simple error handling system
 for ensuring stability, and crazy fast routing system.
 
