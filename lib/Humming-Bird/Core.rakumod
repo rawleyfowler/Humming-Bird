@@ -136,7 +136,6 @@ class Request is HTTPAction is export {
     }
 
     submethod encode(Str:D $raw-request --> Request) {
-        # TODO: Get a better appromixmation or find smallest possible HTTP request size and short circuit if it's smaller
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
         my @lines = $raw-request.lines;
         my ($method_raw, $path, $version) = @lines.head.split(' ');
