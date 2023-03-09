@@ -77,7 +77,7 @@ get('/users/:user', -> $request, $response {
 });
 
 post('/users', -> $request, $response {
-    my %user = $request.content; # Different from $request.body, $request.content will do its best to encode the data to a Map.
+    my %user = $request.content; # Different from $request.body, $request.content will do its best to decode the data to a Map.
     if my-user-validation-logic(%user) { # Validate somehow, i'll leave that up to you.
         %users{%user<name>} = %user;
         $response.status(201); # 201 created
