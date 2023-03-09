@@ -8,20 +8,20 @@ use Humming-Bird::Core;
 plan 17;
 
 my $simple_raw_request = "GET / HTTP/1.1\r\nHost: bob.com\r\n";
-my $simple_request = Request.encode($simple_raw_request);
+my $simple_request = Request.decode($simple_raw_request);
 
 ok $simple_request.method === GET, 'Is method OK?';
 is $simple_request.version, 'HTTP/1.1', 'Is version OK?';
 is $simple_request.path, '/', 'Is path OK?';
 
 my $simple_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nHost: bob.com\r\n";
-my $simple_header_request = Request.encode($simple_header_raw_request);
+my $simple_header_request = Request.decode($simple_header_raw_request);
 
 ok $simple_header_request.method === GET, 'Is method for header request OK?';
 is $simple_header_request.headers{'Accepted-Encoding'}, 'utf-8', 'Is header OK?';
 
 my $many_header_raw_request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nAccept-Language: en-US\r\nConnection: keep-alive\r\nHost: bob.com\r\n";
-my $many_header_request = Request.encode($many_header_raw_request);
+my $many_header_request = Request.decode($many_header_raw_request);
 
 is $many_header_request.headers{'Accepted-Encoding'}, 'utf-8', 'Is header 1 OK?';
 is $many_header_request.headers{'Accept-Language'}, 'en-US', 'Is header 2 OK?';
@@ -29,23 +29,23 @@ is $many_header_request.headers{'Connection'}, 'keep-alive', 'Is header 3 OK?';
 
 my $body = 'aaaaaaaaaa';
 my $simple_post_raw_request = "POST / HTTP/1.1\r\nHost: bob.com\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
-my $simple_post_request = Request.encode($simple_post_raw_request);
+my $simple_post_request = Request.decode($simple_post_raw_request);
 
 is $simple_post_request.body, $body, 'Is post body OK?';
 
 my $simple_post_empty_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 0\r\nHost: bob.com\r\n\r\n";
-my $simple_post_empty_request = Request.encode($simple_post_empty_raw_request);
+my $simple_post_empty_request = Request.decode($simple_post_empty_raw_request);
 
 is $simple_post_empty_request.body, '', 'Is empty post body OK?';
 
 my $simple-absolute-uri-raw-request = "POST http://localhost/ HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
-my $simple-absolute-uri-request = Request.encode($simple-absolute-uri-raw-request);
+my $simple-absolute-uri-request = Request.decode($simple-absolute-uri-raw-request);
 is $simple-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
 is $simple-absolute-uri-request.headers<Host>, 'localhost', 'Is absolute URI host header OK?';
 is $simple-absolute-uri-request.path, '/', 'Is absolute URI path OK?';
 
 my $complex-absolute-uri-raw-request = "POST http://localhost/name/person?bob=123 HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
-my $complex-absolute-uri-request = Request.encode($complex-absolute-uri-raw-request);
+my $complex-absolute-uri-request = Request.decode($complex-absolute-uri-raw-request);
 is $complex-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
 is $complex-absolute-uri-request.headers<Host>, 'localhost', 'Is absolute URI host header OK?';
 is $complex-absolute-uri-request.path, '/name/person', 'Is absolute URI path OK?';

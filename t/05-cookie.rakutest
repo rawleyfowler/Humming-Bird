@@ -9,14 +9,16 @@ plan 5;
 
 my $cookie-request = "GET /bob HTTP/1.1\r\nAccepted-Encoding: utf-8\r\nAccept-Language: en-US\r\nConnection: keep-alive\r\nHost: bob.com\r\nCookie: bob=123\r\n";
 
-is Request.encode($cookie-request).cookies<bob>.name, 'bob', 'Did request encode, create proper cookie name?';
-is Request.encode($cookie-request).cookies<bob>.value, '123', 'Did request encode, create proper cookie value?';
+is Request.decode($cookie-request).cookies<bob>.name, 'bob', 'Did request encode, create proper cookie name?';
+is Request.decode($cookie-request).cookies<bob>.value, '123', 'Did request encode, create proper cookie value?';
 
 get('/', -> $request, $response {
   # Create 1 hour cookie named bob with value 123
   $response.cookie('bob', '123', DateTime.now + Duration.new(3600)).html('Hello World');
 });
 
-ok defined(routes{'/'}{GET}(Request.encode($cookie-request)).cookies<bob>), 'Did cookie get added to response?';
-is routes{'/'}{GET}(Request.encode($cookie-request)).cookies<bob>.name, 'bob', 'Did cookie name get correctly added to response?';
-is routes{'/'}{GET}(Request.encode($cookie-request)).cookies<bob>.value, '123', 'Did cookie value get properly added to response?';
+ok defined(routes{'/'}{GET}(Request.decode($cookie-request)).cookies<bob>), 'Did cookie get added to response?';
+is routes{'/'}{GET}(Request.decode($cookie-request)).cookies<bob>.name, 'bob', 'Did cookie name get correctly added to response?';
+is routes{'/'}{GET}(Request.decode($cookie-request)).cookies<bob>.value, '123', 'Did cookie value get properly added to response?';
+
+done-testing;

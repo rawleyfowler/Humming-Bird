@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.9';
+our constant $VERSION = '2.1.0';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -52,16 +52,16 @@ class Cookie is export {
     has Bool:D $.http-only = True;
     has Bool:D $.secure = False;
 
-    method decode(--> Str:D) {
+    method encode(--> Str:D) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
         ("$.name=$.value", "Expires=$expires", "SameSite=$.same-site", "Path=$.path", $.http-only ?? 'HttpOnly' !! '', $.secure ?? 'Secure' !! '', $.domain // '')
         .grep({ .chars })
         .join('; ');
     }
 
-    submethod encode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
-        Map.new: $cookie-string.split(/\s/, :skip-empty)
-                  .map(*.split('=', :skip-empty))
+    submethod decode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
+        Map.new: $cookie-string.split(/\s/, 2, :skip-empty)
+                  .map(*.split('=', 2, :skip-empty))
                   .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
                   .flat;
     }
@@ -136,19 +136,19 @@ class Request is HTTPAction is export {
         %!query{$query_param};
     }
 
-    submethod encode(Str:D $raw-request --> Request) {
+    submethod decode(Str:D $raw-request --> Request:D) {
         use URI::Encode;
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
         my @lines = $raw-request.lines;
-        my ($method_raw, $path, $version) = @lines.head.split(' ');
+        my ($method_raw, $path, $version) = @lines.head.split(/\s/, :skip-empty);
 
         my $method = http-method-of-str($method_raw);
 
         # Find query params
         my %query;
         if uri_encode(@lines[0]) ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
-            %query = Map.new($<>.map({ .split('=') }).flat);
-            $path = $path.split('?', :skip-empty)[0];
+            %query = Map.new($<>.map({ .split('=', 2) }).flat);
+            $path = $path.split('?', 2)[0];
         }
 
         # Break the request into the body portion, and the upper headers/request line portion
@@ -156,7 +156,7 @@ class Request is HTTPAction is export {
         my $body = "";
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = Map.new(@split_request[0].split("\r\n").tail(*-1).map(*.split(': ', :skip-empty)).flat);
+        my %headers = Map.new(|@split_request[0].split("\r\n", :skip-empty).tail(*-1).map(*.split(':', 2).map(*.trim)).flat);
 
         # Body should only exist if either of these headers are present.
         with %headers<Content-Length> || %headers<Transfer-Encoding> {
@@ -173,7 +173,7 @@ class Request is HTTPAction is export {
         my %cookies;
         # Parse cookies
         with %headers<Cookie> {
-            %cookies := Cookie.encode(%headers<Cookie>);
+            %cookies := Cookie.decode(%headers<Cookie>);
         }
 
         Request.new(:$path, :$method, :$version, :%query, :$body, :%headers, :%cookies);
@@ -273,7 +273,7 @@ class Response is HTTPAction is export {
     }
 
     # $with_body is for HEAD requests.
-    method decode(Bool:D $with-body = True --> Buf:D) {
+    method encode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
         
         $out ~= sprintf("Content-Length: %d\r\n", $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars);
@@ -285,7 +285,7 @@ class Response is HTTPAction is export {
         }
 
         for %.cookies.values {
-            $out ~= sprintf("Set-Cookie: %s\r\n", .decode);
+            $out ~= sprintf("Set-Cookie: %s\r\n", .encode);
         }
 
         $out ~= "\r\n";
@@ -559,7 +559,7 @@ sub routes(--> Hash:D) is export {
 }
 
 sub handle($raw-request) {
-    my Request:D $request = Request.encode($raw-request);
+    my Request:D $request = Request.decode($raw-request);
     my Bool:D $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
 
@@ -570,7 +570,7 @@ sub handle($raw-request) {
     # If the request is HEAD, we shouldn't return the body
     my Bool:D $should-show-body = !($request.method === HEAD);
     # We need $should_show_body because the Content-Length header should remain on a HEAD request
-    return (&advice(dispatch-request($request)).decode($should-show-body), $keep-alive);
+    return (&advice(dispatch-request($request)).encode($should-show-body), $keep-alive);
 }
 
 sub listen(Int:D $port, :$no-block, :$timeout) is export {
