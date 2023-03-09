@@ -9,7 +9,8 @@
 		"HTTP::Status",
 		"DateTime::Format",
 		"MIME::Types",
-        "JSON::Fast"
+        "JSON::Fast",
+        "URI::Encode"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",
@@ -40,5 +41,5 @@
 		"Test::Util::ServerPort",
 		"Cro::HTTP::Client"
 	],
-	"version": "2.0.8"
+	"version": "2.0.9"
 }

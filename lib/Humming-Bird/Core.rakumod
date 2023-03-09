@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.0.8';
+our constant $VERSION = '2.0.9';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -91,7 +91,8 @@ class HTTPAction {
 }
 
 my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
-    $urlencoded.split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
+    use URI::Encode;
+    uri_decode_component($urlencoded).split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
 }
 
 class Request is HTTPAction is export {
@@ -136,6 +137,7 @@ class Request is HTTPAction is export {
     }
 
     submethod encode(Str:D $raw-request --> Request) {
+        use URI::Encode;
         # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
         my @lines = $raw-request.lines;
         my ($method_raw, $path, $version) = @lines.head.split(' ');
@@ -144,13 +146,13 @@ class Request is HTTPAction is export {
 
         # Find query params
         my %query;
-        if @lines[0] ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
+        if uri_encode(@lines[0]) ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
             %query = Map.new($<>.map({ .split('=') }).flat);
             $path = $path.split('?', :skip-empty)[0];
         }
 
         # Break the request into the body portion, and the upper headers/request line portion
-        my @split_request = $raw-request.split("\r\n\r\n", :skip-empty);
+        my @split_request = $raw-request.split("\r\n\r\n", 2, :skip-empty);
         my $body = "";
 
         # Lose the request line and parse an assoc list of headers.
