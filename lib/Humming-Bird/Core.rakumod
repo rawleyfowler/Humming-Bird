@@ -146,7 +146,7 @@ class Request is HTTPAction is export {
 
         # Find query params
         my %query;
-        if uri_encode(@lines[0]) ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
+        if uri_decode_component(@lines[0]) ~~ m:g /<[a..z A..Z 0..9]>+"="<[a..z A..Z 0..9]>+/ {
             %query = Map.new($<>.map({ .split('=', 2) }).flat);
             $path = $path.split('?', 2)[0];
         }
