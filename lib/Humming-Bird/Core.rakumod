@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.0';
+our constant $VERSION = '2.1.1';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -307,11 +307,20 @@ class Response is HTTPAction is export {
 my constant $PARAM_IDX     = ':';
 my constant $CATCH_ALL_IDX = '**';
 
+our %ROUTES;
+our @MIDDLEWARE;
+our @ADVICE = [{ $^a }];
+our %ERROR;
+
 class Route {
     has Str:D $.path is required where { ($^a eq '') or $^a.starts-with('/') };
     has Bool:D $.static = False;
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
+
+    submethod TWEAK {
+        @!middlewares.prepend: @MIDDLEWARE;
+    }
 
     method CALL-ME(Request:D $req) {
         my $res = Response.new(initiator => $req, status => HTTP::Status(200));
@@ -325,10 +334,6 @@ class Route {
         }
     }
 }
-
-our %ROUTES; # TODO: Should be un-modifiable after listen is called.
-our @ADVICE = [{ $^a }];
-our %ERROR;
 
 sub split_uri(Str:D $uri --> List:D) {
     my @uri_parts = $uri.split('/', :skip-empty);
@@ -549,6 +554,16 @@ multi sub advice(@advice) is export {
 multi sub advice(&advice) is export {
     @ADVICE.push: &advice;
 }
+
+multi sub middleware(@middleware) is export {
+    @MIDDLEWARE.append: @middleware;
+}
+
+multi sub middleware(&middleware) is export {
+    @MIDDLEWARE.push: &middleware;
+}
+
+multi sub middleware { return @MIDDLEWARE.clone }
 
 sub error($type, &handler) is export {
     %ERROR{$type.^name} = &handler;
