@@ -49,8 +49,8 @@ class Cookie is export {
     has Str $.domain;
     has Str $.path where { .starts-with('/') orelse .throw } = '/';
     has SameSite $.same-site = 'Strict';
-    has Bool:D $.http-only = True;
-    has Bool:D $.secure = False;
+    has Bool $.http-only = True;
+    has Bool $.secure = False;
 
     method encode(--> Str:D) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
@@ -195,6 +195,11 @@ class Response is HTTPAction is export {
         my $cookie = Cookie.new(:$name, :$value, :$expires);
         %.cookies{$name} = $cookie;
         self;
+    }
+    multi method cookie(Str:D $name, Str:D $value, :$expires, :$secure) {
+        my $cookie = Cookie.new(:$name, :$value, :$expires, :$secure);
+        %.cookies{$name} = $cookie;
+        self;        
     }
 
     proto method status(|) {*}

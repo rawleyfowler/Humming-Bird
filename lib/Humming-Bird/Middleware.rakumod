@@ -15,11 +15,11 @@ sub middleware-logger(Request:D $request, Response:D $response, &next) is export
 
 class Session {
     has Str:D $.id = uuid-v4;
-    has Instant:D $.expiry is required;
+    has Instant:D $.expires is required;
     has %!stash handles <AT-KEY>;
 }
 
-sub middleware-session(:$expiry = 3600, :$secure) is export {
+sub middleware-session(:$ttl = 3600, Bool:D :$secure = False) is export {
     state Lock $lock .= new;
     state %sessions;
     state $session-cleanup = False;
@@ -29,10 +29,10 @@ sub middleware-session(:$expiry = 3600, :$secure) is export {
         if $session-id and %sessions{$session-id}:exists {
             $lock.protect({ $request.stash<session> := %sessions{$session-id} });
         } else {
-            my $session = Session.new(expiry => now + $expiry);
+            my $session = Session.new(expires => now + $ttl);
             $lock.protect({ %sessions{$session.id} = $session });
             $request.stash<session> := $session;
-            $response.cookie($SESSION-NAME, $session.id, DateTime.new($session.expiry));
+            $response.cookie($SESSION-NAME, $session.id, expires => DateTime.new($session.expires), :$secure);
         }
 
         &next();
@@ -41,7 +41,7 @@ sub middleware-session(:$expiry = 3600, :$secure) is export {
     start {
         $session-cleanup = True;
         react whenever Supply.interval(1) {
-            $lock.protect({ %sessions = %sessions.grep({ ($_.value.expiry - now) > 0 }) });
+            $lock.protect({ %sessions = %sessions.grep({ ($_.value.expires - now) > 0 }) });
         }
     } unless $session-cleanup;
     
@@ -75,8 +75,8 @@ This middleware will concisely log all traffic heading for this route.
     use Humming-Bird::Middleware;
     get('/', -> $request, $response {
         $response.html('<h1>Hello World!</h1>');
-    }, [ &middleware-logger ]);
+    }, [ middleware-logger(expiry => 4500, :secure) ]);
 
-This middleware allows a route to access the users session.
+This middleware allows a route to access the users session
 
 =end pod
