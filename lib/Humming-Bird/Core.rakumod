@@ -59,7 +59,7 @@ class Cookie is export {
         .join('; ');
     }
 
-    submethod decode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
+    submethod decode(Str:D $cookie-string) { # We decode "simple" cookies only, since they come from the requests
         Map.new: $cookie-string.split(/\s/, 2, :skip-empty)
                   .map(*.split('=', 2, :skip-empty))
                   .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
@@ -69,8 +69,9 @@ class Cookie is export {
 
 my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
-    has %.headers is Hash;
-    has %.cookies is Hash;
+    has %.headers;
+    has %.cookies;
+    has %.stash; # The stash is never encoded or decoded. It exists purely for internal talking between middlewares, request handlers, etc.
     has Body:D $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
@@ -84,7 +85,7 @@ class HTTPAction {
         self;
     }
 
-    method cookie(Str:D $name --> Str) {
+    multi method cookie(Str:D $name --> Str) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }

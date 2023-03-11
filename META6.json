@@ -10,7 +10,8 @@
 		"DateTime::Format",
 		"MIME::Types",
         "JSON::Fast",
-        "URI::Encode"
+        "URI::Encode",
+        "UUID::V4"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",

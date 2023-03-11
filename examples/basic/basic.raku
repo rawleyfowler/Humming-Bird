@@ -115,6 +115,8 @@ static('/static', '/var/www/static'); # Server static content on '/static', from
 
 get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); });
 
+get('/session', sub ($request, $response) { $response.write('Session!') }, [ middleware-session() ]);
+
 # Routers
 my $router = Router.new(root => '/foo');
 $router.middleware(&middleware-logger); # Append this middleware to all proceeding routes
