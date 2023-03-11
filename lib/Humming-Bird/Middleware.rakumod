@@ -19,26 +19,29 @@ class Session {
     has %!stash handles <AT-KEY>;
 }
 
-sub middleware-session(:$expiry = 3600) is export {
+sub middleware-session(:$expiry = 3600, :$secure) is export {
     state Lock $lock .= new;
     state %sessions;
     state $session-cleanup = False;
 
     sub aux(Request:D $request, Response:D $response, &next) is export {
-        if (my $session-id = $request.cookie($SESSION-NAME)) {
-            $lock.protect({ $request.stash<session> = %sessions{$session-id} with %sessions{$session-id} });
+        my $session-id = $request.cookie($SESSION-NAME).?value;
+        if $session-id and %sessions{$session-id}:exists {
+            $lock.protect({ $request.stash<session> := %sessions{$session-id} });
         } else {
             my $session = Session.new(expiry => now + $expiry);
             $lock.protect({ %sessions{$session.id} = $session });
-            $request.stash<session> = $session;
+            $request.stash<session> := $session;
             $response.cookie($SESSION-NAME, $session.id, DateTime.new($session.expiry));
         }
+
+        &next();
     }
 
     start {
         $session-cleanup = True;
         react whenever Supply.interval(1) {
-            $lock.protect({ %sessions = %sessions.grep({ ($_.value.expiry - now) gt 0 }) });
+            $lock.protect({ %sessions = %sessions.grep({ ($_.value.expiry - now) > 0 }) });
         }
     } unless $session-cleanup;
     

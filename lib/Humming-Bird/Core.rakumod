@@ -85,7 +85,7 @@ class HTTPAction {
         self;
     }
 
-    multi method cookie(Str:D $name --> Str) {
+    multi method cookie(Str:D $name --> Cookie) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }
@@ -110,8 +110,8 @@ class Request is HTTPAction is export {
 
         state $prev-body = $.body;
         
-        return $!content if $!content && ($prev-body eq $.body);
-        return Map.new unless self.header('Content-Type');
+        return $!content if $!content && ($prev-body eqv $.body);
+        return $!content = Map.new unless self.header('Content-Type');
 
         try {
             CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new) } }
