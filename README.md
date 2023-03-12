@@ -11,14 +11,22 @@ Humming-Bird is a simple, composable, and performant web-framework for Raku on M
 Humming-Bird was inspired mainly by [Sinatra](https://sinatrarb.com), and [Express](https://expressjs.com), and tries to keep
 things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
 
-Humming-Bird provides a rich API for crafting HTTP responses, as well as a few nice quality-of-life features like
-inferred data encoding, meaning you shouldn't ever have to parse JSON to a Raku map again, a simple functional interface
-allowing users to compose functions together to create their routes, middlewares, and advice, a simple error handling system
-for ensuring stability, and crazy fast routing system.
+## Features
+Humming-Bird has 2 simple layers, at its core we have `Humming-Bird::HTTPServer` which handles all of the low-level HTTP bits. Then you have the
+routing stack that handles: routing, middleware, error handling, cookies, etc.
 
-Humming-Bird comes with what you need to quickly, and efficiently spin up REST API's, static sites, 
-and with a few of the users favorite libraries, dynamic MVC style web-apps. Humming-Bird stays out of your way
-letting you structure your code however you like.
+- Powerful function composition based routing and application logic
+    - Routers
+    - Groups
+    - Middleware
+    - Advice (end of stack middleware)
+    - Simple global error handling
+
+- Simple and helpful API
+    - get, post, put, patch, delete, etc
+    - Request content will be converted to a Raku `Hash` if possible
+    - Static files served have their content type infered
+    - Request/Response stash's for inter-layer route talking
 
 **Note**: Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as httpd or NGiNX.
 
