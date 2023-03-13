@@ -115,6 +115,15 @@ static('/static', '/var/www/static'); # Server static content on '/static', from
 
 get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); });
 
+get('/login', sub ($request, $response) {
+           $request.stash<session><user> = 'foobar';
+           $response.write('Logged in as foobar');
+       }, [ middleware-session ]);
+
+get('/session', sub ($request, $response) {
+           $response.write($request.stash<session><user>.raku)
+       }, [ middleware-session ]);
+
 # Routers
 my $router = Router.new(root => '/foo');
 $router.middleware(&middleware-logger); # Append this middleware to all proceeding routes

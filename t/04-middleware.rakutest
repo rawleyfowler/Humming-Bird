@@ -4,9 +4,12 @@ use lib 'lib';
 use Test;
 
 use Humming-Bird::Core;
-use Humming-Bird::Middleware;
 
-plan 5;
+plan 6;
+
+use-ok 'Humming-Bird::Middleware';
+
+use Humming-Bird::Middleware;
 
 get('/', -> $request, $response {
   $response.html('Hello World!');

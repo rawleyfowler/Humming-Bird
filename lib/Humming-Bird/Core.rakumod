@@ -49,8 +49,8 @@ class Cookie is export {
     has Str $.domain;
     has Str $.path where { .starts-with('/') orelse .throw } = '/';
     has SameSite $.same-site = 'Strict';
-    has Bool:D $.http-only = True;
-    has Bool:D $.secure = False;
+    has Bool $.http-only = True;
+    has Bool $.secure = False;
 
     method encode(--> Str:D) {
         my $expires = ~trim-utc-for-gmt($.expires.clone(formatter => DateTime::Format::RFC2822.new()).utc.Str);
@@ -59,7 +59,7 @@ class Cookie is export {
         .join('; ');
     }
 
-    submethod decode(Str:D $cookie-string) { # We encode "simple" cookies only, since they come from the requests
+    submethod decode(Str:D $cookie-string) { # We decode "simple" cookies only, since they come from the requests
         Map.new: $cookie-string.split(/\s/, 2, :skip-empty)
                   .map(*.split('=', 2, :skip-empty))
                   .map(-> ($name, $value) { $name => Cookie.new(:$name, :$value) })
@@ -69,8 +69,9 @@ class Cookie is export {
 
 my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
-    has %.headers is Hash;
-    has %.cookies is Hash;
+    has %.headers;
+    has %.cookies;
+    has %.stash; # The stash is never encoded or decoded. It exists purely for internal talking between middlewares, request handlers, etc.
     has Body:D $.body is rw = "";
 
     # Find a header in the action, return (Any) if not found
@@ -84,7 +85,7 @@ class HTTPAction {
         self;
     }
 
-    method cookie(Str:D $name --> Str) {
+    multi method cookie(Str:D $name --> Cookie) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
     }
@@ -109,8 +110,8 @@ class Request is HTTPAction is export {
 
         state $prev-body = $.body;
         
-        return $!content if $!content && ($prev-body eq $.body);
-        return Map.new unless self.header('Content-Type');
+        return $!content if $!content && ($prev-body eqv $.body);
+        return $!content = Map.new unless self.header('Content-Type');
 
         try {
             CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new) } }
@@ -194,6 +195,11 @@ class Response is HTTPAction is export {
         my $cookie = Cookie.new(:$name, :$value, :$expires);
         %.cookies{$name} = $cookie;
         self;
+    }
+    multi method cookie(Str:D $name, Str:D $value, :$expires, :$secure) {
+        my $cookie = Cookie.new(:$name, :$value, :$expires, :$secure);
+        %.cookies{$name} = $cookie;
+        self;        
     }
 
     proto method status(|) {*}
