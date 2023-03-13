@@ -19,7 +19,8 @@ class Session {
     has %!stash handles <AT-KEY>;
 }
 
-sub middleware-session(:$ttl = 3600, Bool:D :$secure = False) is export {
+# Defaults to 24 hour sessions
+sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is export {
     state Lock $lock .= new;
     state %sessions;
     state $session-cleanup = False;
