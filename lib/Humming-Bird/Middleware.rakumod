@@ -9,7 +9,7 @@ unit module Humming-Bird::Middleware;
 my constant $SESSION-NAME = 'HB_SESSION';
 
 sub middleware-logger(Request:D $request, Response:D $response, &next) is export {
-    say sprintf("%s %s | %s %s", $request.method.Str, $request.path, $request.version, $request.header('User-Agent') || 'Unknown Agent');
+    $request.log(sprintf("%s | %s | %s | %s", $request.method.Str, $request.path, $request.version, $request.header('User-Agent') || 'Unknown Agent'));
     &next();
 }
 
