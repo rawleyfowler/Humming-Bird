@@ -91,8 +91,8 @@ class HTTPAction {
         %.cookies{$name};
     }
 
-    method log(Str:D $message) {
-        say "[Context: { self.context-id }] | [Time: { DateTime.now }] | $message";
+    method log(Str:D $message, :$file = $*OUT) {
+        $file.print: "[Context: { self.context-id }] | [Time: { DateTime.now }] | $message\n";
         self;
     }
 }
