@@ -69,6 +69,7 @@ class Cookie is export {
 
 my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
+    has $.context-id;
     has %.headers;
     has %.cookies;
     has %.stash; # The stash is never encoded or decoded. It exists purely for internal talking between middlewares, request handlers, etc.
@@ -88,6 +89,11 @@ class HTTPAction {
     multi method cookie(Str:D $name --> Cookie) {
         return Nil without %.cookies{$name};
         %.cookies{$name};
+    }
+
+    method log(Str:D $message, :$file = $*OUT) {
+        $file.print: "[Context: { self.context-id }] | [Time: { DateTime.now }] | $message\n";
+        self;
     }
 }
 
@@ -177,13 +183,15 @@ class Request is HTTPAction is export {
             %cookies := Cookie.decode(%headers<Cookie>);
         }
 
-        Request.new(:$path, :$method, :$version, :%query, :$body, :%headers, :%cookies);
+        my $context-id = rand.Str.subst('0.', '').substr: 0, 5;
+
+        Request.new(:$path, :$method, :$version, :%query, :$body, :%headers, :%cookies, :$context-id);
     }
 }
 
 class Response is HTTPAction is export {
     has HTTP::Status $.status is required;
-    has Request:D $.initiator is required;
+    has Request:D $.initiator is required handles <context-id>;
 
     proto method cookie(|) {*}
     multi method cookie(Str:D $name, Cookie:D $value) {
