@@ -1,0 +1,6 @@
+#!/usr/bin/env raku
+
+use Humming-Bird::Core;
+use App::Foo;
+
+listen(1234); # Start the server on port 1234

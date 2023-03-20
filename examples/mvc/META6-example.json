@@ -1,0 +1,31 @@
+{
+    "auth": "zef:my-zef",
+    "authors": [
+        "My Name"
+    ],
+    "depends": [
+        "Humming-Bird",
+        "Template::Mustache"
+    ],
+    "provides": {
+        "App::Foo": "lib/App/Foo.rakumod",
+        "App::Foo::Controller::Foo": "lib/App/Controller/Foo.rakumod",
+        "App::Foo::Controller::Bar": "lib/App/Controller/Bar.rakumod",
+        "App::Foo::Model::Foo": "lib/App/Model/Foo.rakumod",
+        "App::Foo::Render": "lib/App/Foo/Render.rakumod"
+    },
+    "name": "App::Foo",
+    "perl": "6.d",
+    "resources": [ ],
+    "source-url": "https://github.com/rawleyfowler/Humming-Bird",
+    "support": {
+        "source": "https://github.com/rawleyfowler/Humming-Bird"
+    },
+    "tags": [
+        "Example"
+    ],
+    "test-depends": [
+        "Test"
+    ],
+    "version": "0.0.1"
+}
