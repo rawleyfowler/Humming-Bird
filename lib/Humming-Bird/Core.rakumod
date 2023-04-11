@@ -290,16 +290,17 @@ class Response is HTTPAction is export {
     method encode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
         my $body-size = $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars;
+
+        if $body-size > 0 && %.headers<Content-Type> {
+            %.headers<Content-Type> ~= '; charset=utf8';
+        }
+
         $out ~= sprintf("Content-Length: %d\r\n", $body-size);
         $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
         for %.headers.pairs {
-            my $value = .value;
-            if .key eqv 'Content-Type' {
-                $value ~= '; charset=utf8';
-            }
-            $out ~= sprintf("%s: %s\r\n", .key, $value);
+            $out ~= sprintf("%s: %s\r\n", .key, .value);
         }
 
         for %.cookies.values {
