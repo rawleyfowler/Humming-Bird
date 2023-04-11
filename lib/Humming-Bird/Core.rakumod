@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.1';
+our constant $VERSION = '2.1.3';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -212,11 +212,11 @@ class Response is HTTPAction is export {
 
     proto method status(|) {*}
     multi method status(--> HTTP::Status) { $!status }
-    multi method status(Int:D $status --> Response) {
+    multi method status(Int:D $status --> Response:D) {
         $!status = HTTP::Status($status);
         self;
     }
-    multi method status(HTTP::Status:D $status --> Response) {
+    multi method status(HTTP::Status:D $status --> Response:D) {
         $!status = $status;
         self;
     }
@@ -232,19 +232,19 @@ class Response is HTTPAction is export {
         self;
     }
 
-    method html(Str:D $body --> Response) {
+    method html(Str:D $body --> Response:D) {
         $.write($body, 'text/html');
         self;
     }
 
     # Write a JSON string to the body of the request
-    method json(Str:D $body --> Response) {
+    method json(Str:D $body --> Response:D) {
         $.write($body, 'application/json');
         self;
     }
 
     # Set a file to output.
-    method file(Str:D $file --> Response) {
+    method file(Str:D $file --> Response:D) {
         my $text = $file.IO.slurp(:bin);
         my $mime-type = $mime.type($file.IO.extension) // 'text/plain';
         try {
@@ -289,8 +289,13 @@ class Response is HTTPAction is export {
     # $with_body is for HEAD requests.
     method encode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
-        
-        $out ~= sprintf("Content-Length: %d\r\n", $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars);
+        my $body-size = $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars;
+
+        if $body-size > 0 && %.headers<Content-Type> {
+            %.headers<Content-Type> ~= '; charset=utf8';
+        }
+
+        $out ~= sprintf("Content-Length: %d\r\n", $body-size);
         $out ~= sprintf("Date: %s\r\n", now-rfc2822);
         $out ~= "X-Server: Humming-Bird v$VERSION\r\n";
 
