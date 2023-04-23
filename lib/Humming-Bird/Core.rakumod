@@ -648,8 +648,9 @@ I recommend NGiNX. This is why TLS is not implemented.
 
 Register an HTTP route, and a C<Block> that takes a Request and a Response.
 It is expected that the route handler returns a valid C<Response>, in this case C<.html> returns
-the response object for easy chaining. There is no built in body parsers, so you'll have to
-convert bodies with another library, JSON::Fast is a good option for JSON!
+the response object for easy chaining. Bodies of requests can be parsed using C<.content> which
+will attempt to parse the request based on the content-type, this only supports JSON and urlencoded
+requests at the moment.
 
 =head3 group
 
