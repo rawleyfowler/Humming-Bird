@@ -1,0 +1,27 @@
+use v6;
+use strict;
+use lib 'lib';
+
+use Test;
+use Humming-Bird::Core;
+
+plan 9;
+
+my $simple_raw_request = "GET /?foo=bar%40baz HTTP/1.1\r\nHost: bob.com\r\n";
+my $simple_request = Request.decode($simple_raw_request);
+
+ok $simple_request.method === GET, 'Is method OK?';
+is $simple_request.version, 'HTTP/1.1', 'Is version OK?';
+is $simple_request.path, '/', 'Is path OK?';
+is $simple_request.query('foo'), 'bar@baz', 'Is query param correct?';
+
+my $advanced_raw_request = "GET /?foo=bar%40baz&j=123%40abc HTTP/1.1\r\nHost: bob.com\r\n";
+my $advanced_request = Request.decode: $advanced_raw_request;
+
+ok $advanced_request.method === GET, 'Is method OK?';
+is $advanced_request.version, 'HTTP/1.1', 'Is version OK?';
+is $advanced_request.path, '/', 'Is path OK?';
+is $advanced_request.query('foo'), 'bar@baz', 'Is first of query params correct?';
+is $advanced_request.query('j'), '123@abc', 'Is second of query params correct?';
+
+done-testing;
