@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.4';
+our constant $VERSION = '2.1.5';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -138,7 +138,11 @@ class Request is HTTPAction is export {
         %!params{$param};
     }
 
-    method query(Str:D $query_param --> Str) {
+    proto method query(|) { * }
+    multi method query {
+        return %!query;
+    }
+    multi method query(Str:D $query_param --> Str) {
         return Nil without %!query{$query_param};
         %!query{$query_param};
     }
