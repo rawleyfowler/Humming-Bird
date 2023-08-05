@@ -52,6 +52,7 @@ sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is ex
 # vim: expandtab shiftwidth=4
 
 =begin pod
+
 =head1 Humming-Bird::Middleware
 
 Simple middleware for the Humming-Bird web-framework.
@@ -71,7 +72,7 @@ This middleware will concisely log all traffic heading for this route.
 
 =head3 middleware-session
 
-= for code
+=for code
     use Humming-Bird::Core;
     use Humming-Bird::Middleware;
     get('/', -> $request, $response {

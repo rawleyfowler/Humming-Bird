@@ -4,12 +4,14 @@ use strict;
 use HTTP::Status;
 use DateTime::Format::RFC2822;
 use MIME::Types;
+use Digest::SHA1;
+use Base64;
 
 use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.5';
+our constant $VERSION = '2.2.0';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -21,7 +23,7 @@ sub now-rfc2822(--> Str:D) {
 }
 
 ### REQUEST/RESPONSE SECTION
-enum HTTPMethod is export <GET POST PUT PATCH DELETE HEAD>;
+enum HTTPMethod is export <WS GET POST PUT PATCH DELETE HEAD>;
 
 # Convert a string to HTTP method, defaults to GET
 sub http-method-of-str(Str:D $method --> HTTPMethod:D) {
@@ -32,6 +34,7 @@ sub http-method-of-str(Str:D $method --> HTTPMethod:D) {
         when 'patch' { PATCH }
         when 'delete' { DELETE }
         when 'head' { HEAD }
+        when 'ws' { WS }
         default { GET }
     }
 }
@@ -348,12 +351,19 @@ class Route {
         @!middlewares.prepend: @MIDDLEWARE;
     }
 
-    method CALL-ME(Request:D $req) {
+    method CALL-ME(Request:D $req, $socket = Nil) {
         my $res = Response.new(initiator => $req, status => HTTP::Status(200));
         if @!middlewares.elems {
             state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a({ &b }) });
+
             # Finally, the main callback is added to the end of the chain
-            &composition(&!callback.assuming($req, $res));
+
+            # If it's a websocket we need to pass a socket to the callback
+            if $req.method === WS {
+                &composition(&!callback.assuming($req, $res, $socket);
+            } else {
+                &composition(&!callback.assuming($req, $res));
+            }
         } else {
             # If there is are no middlewares, just process the callback
             &!callback($req, $res);
@@ -381,6 +391,23 @@ sub delegate-route(Route:D $route, HTTPMethod:D $meth --> Route:D) {
         %loc := %loc{$part};
     }
 
+    if ($meth eq WS) {
+        state $magic = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+        $route.callback = sub ($request, $response, $socket) {
+            return $response.status(400).body('') unless $request.header('Sec-WebSocket-Key');
+
+            my $key = encode-base64(sha1($request.header('Sec-WebSocket-Key') ~ $magic), :str);
+
+            $socket.Supply: :bin -> $msg {
+                my $t = $route.callback(Humming-Bird::WebSocket::decode($msg));
+                $socket.write(Humming-Bird::WebSocket::encode($t));
+            }
+
+            $response.status(101).header('Sec-WebSocket-Accept', $key).header('Connection', 'upgrade').header('Upgrade', 'websocket');
+        };
+    }
+
     %loc{$meth} := $route;
     $route; # Return the route.
 }
@@ -399,6 +426,14 @@ class Router is export {
                              callback => { &advice(&cb($^a, $^b)) });
         @!routes.push: $r;
         delegate-route($r, $method);
+    }
+
+    multi method ws(Str:D $path, &callback) {
+        self!add-route(Route.new(:$path, :&callback), WS);
+    }
+
+    multi method ws(&callback) {
+        self!add-route(Route.new(path => '', :&callback), WS);
     }
 
     multi method get(Str:D $path, &callback, @middlewares = List.new) {
@@ -462,7 +497,7 @@ my sub SERVER-ERROR(Request:D $initiator --> Response:D) {
     Response.new(:$initiator, status => HTTP::Status(500)).html('500 Server Error');
 }
 
-sub dispatch-request(Request:D $request --> Response:D) {
+sub dispatch-request(Request:D $request, $raw-req --> Response:D) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
         return BAD-REQUEST($request);
@@ -510,23 +545,27 @@ sub dispatch-request(Request:D $request --> Response:D) {
         return METHOD-NOT-ALLOWED($request);
     }
     
-    try {
-        # This is how we pass to error handlers.
-        CATCH {
-            when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
-            default {
-                my $err = $_;
-                with %*ENV<HUMMING_BIRD_ENV> {
-                    if .lc ~~ 'prod' | 'production' {
-                        return SERVER-ERROR($request);
-                    }
+    # This is how we pass to error handlers.
+    CATCH {
+        when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
+        default {
+            my $err = $_;
+            with %*ENV<HUMMING_BIRD_ENV> {
+                if .lc ~~ 'prod' | 'production' {
+                    return SERVER-ERROR($request);
                 }
-                return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
             }
+            return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
         }
-        
-        return %loc{$request.method}($request);
     }
+
+    return %loc{$request.method}($request, $raw-request<connection><socket>) if $request.method === WS;
+
+    return %loc{$request.method}($request);
+}
+
+sub ws(Str:D $path, &callback) is export {
+    delegate-route(Route.new(:$path, :&callback), WS);
 }
 
 sub get(Str:D $path, &callback, @middlewares = List.new) is export {
@@ -599,8 +638,13 @@ sub routes(--> Hash:D) is export {
     %ROUTES.clone;
 }
 
-sub handle($raw-request) {
-    my Request:D $request = Request.decode($raw-request);
+sub handle($raw-request) { 
+    my Request:D $request = Request.decode($raw-request<data>.decode);
+
+    if $raw-request<upgrade>.defined {
+        
+    }
+
     my Bool:D $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
 
@@ -611,7 +655,7 @@ sub handle($raw-request) {
     # If the request is HEAD, we shouldn't return the body
     my Bool:D $should-show-body = !($request.method === HEAD);
     # We need $should_show_body because the Content-Length header should remain on a HEAD request
-    return (&advice(dispatch-request($request)).encode($should-show-body), $keep-alive);
+    return (&advice(dispatch-request($request, $raw-request)).encode($should-show-body), $keep-alive);
 }
 
 sub listen(Int:D $port, :$no-block, :$timeout) is export {

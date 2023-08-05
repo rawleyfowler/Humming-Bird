@@ -20,14 +20,12 @@ class Humming-Bird::HTTPServer is export {
                     CATCH { default { warn $_ } }
                     $!lock.protect({
                         @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
-                        for @!connections.grep({ now - $_<last-active> >= $!timeout }) {
-                            try {
-                                $_<closed> = True;
-                                $_<socket>.write(Blob.new);
-                                $_<socket>.close;
+                        for @!connections.grep({ (now - $_<last-active> >= $!timeout) && (!$_<websocket>.defined && !$_<closed>.defined) }) {
+                            $_<closed> = True;
+                            $_<socket>.write(Blob.new);
+                            $_<socket>.close;
 
-                                CATCH { default { warn $_ } }
-                            }
+                            CATCH { default { warn $_ } }
                         }
                     });
                 }
@@ -40,15 +38,15 @@ class Humming-Bird::HTTPServer is export {
             react {
                 whenever $.requests -> $request {
                     CATCH { default { .say } }
-                    my ($response, $keep-alive) = &handler($request<data>.decode);
+                    my ($response, $keep-alive) = &handler($request);
                     $request<connection><socket>.write: $response;
-                    $request<connection><closed> = True unless $keep-alive;
+                    $request<connection><closed> = True unless ($keep-alive || $request<connection><websocket>.defined);
                 }
             }
         }
     }
 
-    method !handle-request($data is rw, $index is rw, $connection) {
+    method !handle-request($data is rw, $index is rw, $connection is rw) {
         my $request = {
             :$connection,
             data => Buf.new
@@ -60,6 +58,7 @@ class Humming-Bird::HTTPServer is export {
         $request<data> ~= $data.subbuf(0, $index);
 
         my $content-length = $data.elems - $index;
+        my $upgrade = False;
         for @header-lines -> $header {
             my ($key, $value) = $header.split(': ', :skip-empty);
             given $key.lc {
@@ -91,15 +90,20 @@ class Humming-Bird::HTTPServer is export {
                         }
                     }
                 }
+                when 'upgrade' {
+                    if $value.chomp.lc.index('websocket') !~~ Nil {
+                        $upgrade = True;
+                    }
+                }
             }
         }
 
         $request<data> ~= $data.subbuf($index, $content-length+4);
+        $request<upgrade> = $upgrade;
         $.requests.send: $request;
     }
 
     method listen(&handler) {
-
         react {
             say "Humming-Bird listening on port http://localhost:$.port";
 
@@ -115,24 +119,26 @@ class Humming-Bird::HTTPServer is export {
                 $!lock.protect({ @!connections.push: %connection-map });
 
                 whenever $connection.Supply: :bin -> $bytes {
-                    my Buf   $data .= new;
-                    my Int:D $idx   = 0;
-                    my $req;
-
-                    CATCH { default { .say } }
-                    $data ~= $bytes;
                     %connection-map<last-active> = now;
-                    while $idx++ < $data.elems - 4 {
-                        # Read up to headers
-                        $idx--, last if $data[$idx] == $DEFAULT-RN[0]
-                        && $data[$idx+1] == $DEFAULT-RN[1]
-                        && $data[$idx+2] == $DEFAULT-RN[2]
-                        && $data[$idx+3] == $DEFAULT-RN[3];
+
+                    my Buf   $data .= new;
+                    $data ~= $bytes;
+
+                    if !%connection-map<websocket>.defined {
+                        my Int:D $idx   = 0;
+                        CATCH { default { .say } }
+                        while $idx++ < $data.elems - 4 {
+                            # Read up to headers
+                            $idx--, last if $data[$idx] == $DEFAULT-RN[0]
+                            && $data[$idx+1] == $DEFAULT-RN[1]
+                            && $data[$idx+2] == $DEFAULT-RN[2]
+                            && $data[$idx+3] == $DEFAULT-RN[3];
+                        }
+
+                        $idx += 4;
+
+                        self!handle-request($data, $idx, %connection-map);
                     }
-
-                    $idx += 4;
-
-                    self!handle-request($data, $idx, %connection-map);
                 }
 
                 CATCH { default { .say; $connection.close; %connection-map<closed> = True } }

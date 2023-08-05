@@ -11,7 +11,9 @@
 		"MIME::Types",
         "JSON::Fast",
         "URI::Encode",
-        "UUID::V4"
+        "UUID::V4",
+        "Digest",
+        "Base64"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",
@@ -42,5 +44,5 @@
 		"Test::Util::ServerPort",
 		"Cro::HTTP::Client"
 	],
-	"version": "2.1.6"
+	"version": "2.2.0"
 }
