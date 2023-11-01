@@ -4,6 +4,7 @@ use strict;
 use HTTP::Status;
 use DateTime::Format::RFC2822;
 use MIME::Types;
+use URI::Encode;
 
 use Humming-Bird::HTTPServer;
 
@@ -98,8 +99,12 @@ class HTTPAction {
 }
 
 my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
+<<<<<<< Updated upstream
     use URI::Encode;
     uri_decode_component($urlencoded).split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
+=======
+    $urlencoded.split('&', :skip-empty)>>.split('=', 2, :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
+>>>>>>> Stashed changes
 }
 
 class Request is HTTPAction is export {

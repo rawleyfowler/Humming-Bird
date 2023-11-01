@@ -25,4 +25,10 @@ is $advanced_request.query('foo'), 'bar@baz', 'Is first of query params correct?
 is $advanced_request.query('j'), '123@abc', 'Is second of query params correct?';
 is $advanced_request.queries, { j => '123@abc', foo => 'bar@baz' }, 'Is queries hash correct?';
 
+my $weird_raw_request = "GET /?foo=foo%3Fbar%3D123%3D23 HTTP/1.1\r\nHost: bob.com\r\n";
+my $weird_request = Request.decode: $weird_raw_request;
+
+ok $weird_request.method === GET, 'Is method OK?';
+is $weird_request.query('foo'), 'foo?bar=123=23', 'Is query decoded correctly?';
+
 done-testing;
