@@ -5,7 +5,7 @@ use lib 'lib';
 use Test;
 use Humming-Bird::Core;
 
-plan 10;
+plan 12;
 
 my $simple_raw_request = "GET /?foo=bar%40baz HTTP/1.1\r\nHost: bob.com\r\n";
 my $simple_request = Request.decode($simple_raw_request);

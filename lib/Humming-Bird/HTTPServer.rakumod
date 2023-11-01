@@ -61,7 +61,7 @@ class Humming-Bird::HTTPServer is export {
 
         my $content-length = $data.elems - $index;
         for @header-lines -> $header {
-            my ($key, $value) = $header.split(': ', :skip-empty);
+            my ($key, $value) = $header.split(': ', 2, :skip-empty);
             given $key.lc {
                 when 'content-length' {
                     $content-length = +$value // ($data.elems - $index);

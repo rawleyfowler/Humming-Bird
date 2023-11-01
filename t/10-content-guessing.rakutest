@@ -2,7 +2,7 @@ use v6.d;
 use Humming-Bird::Core;
 use Test;
 
-plan 4;
+plan 7;
 
 my $request = Request.new(body => '{ "foo": "bar" }', path => '/home', method => GET, version => 'HTTP/1.1');
 $request.header('Content-Type', 'application/json');
@@ -21,5 +21,11 @@ is $request.content, Map.new('tom', 'abc', 'bob' => (123,456,789), 'john', 'abc'
 $request.body = 'tom=abc&lob=123';
 
 is $request.content<lob>, '123', 'Is urlencoded re-evaluated on change?';
+is $request.content<tom>, 'abc', 'Is urlencoded re-evaluated on change?';
+
+$request.body = 'hyperlink=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3DxvFZjo5PgG0';
+
+lives-ok sub { $request.content };
+is $request.content<hyperlink>, 'https://youtube.com/watch?v=xvFZjo5PgG0';
 
 done-testing;

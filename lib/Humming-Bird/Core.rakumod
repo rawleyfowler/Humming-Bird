@@ -10,7 +10,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.5';
+our constant $VERSION = '2.1.7';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -39,7 +39,7 @@ sub http-method-of-str(Str:D $method --> HTTPMethod:D) {
 
 # Converts a string of headers "KEY: VALUE\r\nKEY: VALUE\r\n..." to a map of headers.
 sub decode_headers(Str:D $header_block --> Map:D) {
-    Map.new($header_block.lines.map({ .split(": ", :skip-empty) }).flat);
+    Map.new($header_block.lines.map({ .split(": ", 2, :skip-empty) }).flat);
 }
 
 subset SameSite of Str where 'Strict' | 'Lax';
@@ -99,12 +99,9 @@ class HTTPAction {
 }
 
 my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
-<<<<<<< Updated upstream
-    use URI::Encode;
-    uri_decode_component($urlencoded).split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
-=======
-    $urlencoded.split('&', :skip-empty)>>.split('=', 2, :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
->>>>>>> Stashed changes
+    $urlencoded.split('&', :skip-empty).map(&uri_decode_component)>>.split('=', 2, :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b })
+    .flat
+    .Map;
 }
 
 class Request is HTTPAction is export {
@@ -125,7 +122,12 @@ class Request is HTTPAction is export {
         return $!content = Map.new unless self.header('Content-Type');
 
         try {
-            CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new) } }
+            CATCH {
+                default {
+                    warn "Encountered Error: $_;\n\n Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new)
+                }
+            }
+
             if self.header('Content-Type').ends-with: 'json' {
                 $!content = from-json(self.body).Map;
             } elsif self.header('Content-Type').ends-with: 'urlencoded' {
@@ -487,18 +489,18 @@ sub dispatch-request(Request:D $request --> Response:D) {
             
             return NOT-FOUND($request);
         } elsif $possible-param && !%loc{$uri} {
-            $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
-            %loc := %loc{$possible-param};
-        } else {
+$request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
+%loc := %loc{$possible-param};
+} else {
             %loc := %loc{$uri};
         }
 
 		# If the route could possibly be static
         with %loc{$request.method} {
-		    if %loc{$request.method}.static {
-			    return %loc{$request.method}($request);
-		    }
-        }
+if %loc{$request.method}.static {
+	return %loc{$request.method}($request);
+}
+}
     }
 
     # For HEAD requests we should return a GET request. The decoder will delete the body
@@ -512,8 +514,8 @@ sub dispatch-request(Request:D $request --> Response:D) {
 
     # If we don't support the request method on this route.
     without %loc{$request.method} {
-        return METHOD-NOT-ALLOWED($request);
-    }
+return METHOD-NOT-ALLOWED($request);
+}
     
     try {
         # This is how we pass to error handlers.
@@ -667,40 +669,40 @@ requests at the moment.
 =head3 group
 
 =for code
-    # Add middleware to a few routes
-    group([
-        &get.assuming('/', -> $request, $response {
-            $response.html('Index');
-        }),
+# Add middleware to a few routes
+group([
+             &get.assuming('/', -> $request, $response {
+                                  $response.html('Index');
+                              }),
 
-        &get.assuming('/other', -> $request, $response {
-            $response.html('Other');
-        })
-    ], [ &m_logger, &my_middleware ]);
+             &get.assuming('/other', -> $request, $response {
+                                  $response.html('Other');
+                              })
+         ], [ &m_logger, &my_middleware ]);
 
 Group registers multiple routes functionally via partial application. This allows you to
 group as many different routes together and feed them a C<List> of middleware in the last parameter.
 Group takes a C<List> of route functions partially applied to their route and callback, then a C<List>
-of middleware to apply to the routes.
+                                                                                             of middleware to apply to the routes.
 
 =head3 listen
 
 =for code
-    listen(8080);
+     listen(8080);
 
 Start the server, after you've declared your routes. It will listen in a given port.
 
 =head3 routes
 
 =for code
-    routes();
+     routes();
 
 Returns a read-only version of the currently stored routes.
 
 =head3 HTTPMethod
 
-Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
+       Simply an ENUM that contains the major HTTP methods allowed by Humming-Bird.
 
 =end pod
 
-# vim: expandtab shiftwidth=4
+     # vim: expandtab shiftwidth=4
