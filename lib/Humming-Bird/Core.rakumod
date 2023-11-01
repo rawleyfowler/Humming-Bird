@@ -9,7 +9,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.5';
+our constant $VERSION = '2.1.7';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -99,7 +99,7 @@ class HTTPAction {
 
 my sub parse-urlencoded(Str:D $urlencoded --> Map:D) {
     use URI::Encode;
-    uri_decode_component($urlencoded).split('&', :skip-empty)>>.split('=', :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
+    uri_decode_component($urlencoded).split('&', :skip-empty)>>.split('=', 2, :skip-empty)>>.map(-> $a, $b { $b.contains(',') ?? slip $a => $b.split(',', :skip-empty) !! slip $a => $b }).flat.Map;
 }
 
 class Request is HTTPAction is export {
@@ -120,7 +120,12 @@ class Request is HTTPAction is export {
         return $!content = Map.new unless self.header('Content-Type');
 
         try {
-            CATCH { default { warn "Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new) } }
+            CATCH {
+                default {
+                    warn "Encountered Error: $_;\n\n Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new)
+                }
+            }
+
             if self.header('Content-Type').ends-with: 'json' {
                 $!content = from-json(self.body).Map;
             } elsif self.header('Content-Type').ends-with: 'urlencoded' {
