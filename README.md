@@ -112,7 +112,7 @@ my $router = Router.new(root => '/');
 $router.middleware(&middleware-logger); # middleware-logger is provided by the Middleware package
 
 $router.get(-> $request, $response { # Register a GET route on the root of the router
-    $response.html('<h1>Hello World</h1>);
+    $response.html('<h1>Hello World</h1>');
 });
 
 $router.get('/foo', -> $request, $response { # Register a GET route on /foo
@@ -171,7 +171,7 @@ Please make sure you squash your branch, and name it accordingly before it gets 
 
 #### Testing
 
-Install App::prove6
+Install App::Prove6
 
 ```bash
 zef install --force-install App::Prove6
