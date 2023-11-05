@@ -1,0 +1,17 @@
+use v6;
+use lib 'lib';
+use strict;
+use Test;
+use Humming-Bird::Core;
+
+plan 4;
+
+my $req = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
+
+ok $req.header('Foo', 'bar'), 'Does add ok?';
+ok $req.header('Bar', 'foo'), 'Does add ok?';
+
+is $req.header('foo'), 'bar', 'Does get case insensitive?';
+is $req.header('BaR'), 'foo', 'Does get case insensitive?';
+
+done-testing;
