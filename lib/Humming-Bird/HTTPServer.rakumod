@@ -21,7 +21,7 @@ class Humming-Bird::HTTPServer is export {
                     $!lock.protect({
                         @!connections = @!connections.grep({ !$_<closed>.defined }); # Remove dead connections
                         for @!connections.grep({ now - $_<last-active> >= $!timeout }) {
-                            try {
+                            {
                                 $_<closed> = True;
                                 $_<socket>.write(Blob.new);
                                 $_<socket>.close;
