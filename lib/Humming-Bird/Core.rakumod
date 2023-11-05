@@ -612,7 +612,7 @@ sub handle($raw-request) {
     my Bool:D $keep-alive = False;
     my &advice = [o] @ADVICE; # Advice are Response --> Response
 
-    with $request.headers<Connection> {
+    with $request.header('Connection') {
         $keep-alive = .lc eq 'keep-alive';
     }
 
