@@ -10,7 +10,7 @@ use Humming-Bird::HTTPServer;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '2.1.7';
+our constant $VERSION = '2.2.0';
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -38,8 +38,8 @@ sub http-method-of-str(Str:D $method --> HTTPMethod:D) {
 }
 
 # Converts a string of headers "KEY: VALUE\r\nKEY: VALUE\r\n..." to a map of headers.
-sub decode_headers(Str:D $header_block --> Map:D) {
-    Map.new($header_block.lines.map({ .split(": ", 2, :skip-empty) }).flat);
+sub decode-headers(@header_block --> Map:D) {
+    Map.new(@header_block.map(*.trim.split(': ', 2, :skip-empty).map(*.trim)).map({ [@^a[0].lc, @^a[1]] }).flat);
 }
 
 subset SameSite of Str where 'Strict' | 'Lax';
@@ -78,12 +78,13 @@ class HTTPAction {
 
     # Find a header in the action, return (Any) if not found
     multi method header(Str:D $name --> Str) {
-        return Nil without %.headers{$name};
-        %.headers{$name};
+        my $lc-name = $name.lc;
+        return Nil without %.headers{$lc-name};
+        %.headers{$lc-name};
     }
 
-    multi method header(Str:D $name, Str:D $value --> HTTPAction:D) {
-        %.headers{$name} = $value;
+    multi method header(Str:D $name, Str:D $value) {
+        %.headers{$name.lc} = $value;
         self;
     }
 
@@ -177,24 +178,24 @@ class Request is HTTPAction is export {
         my $body = "";
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = Map.new(|@split_request[0].split("\r\n", :skip-empty).tail(*-1).map(*.split(':', 2).map(*.trim)).flat);
+        my %headers = decode-headers(@split_request[0].split("\r\n", :skip-empty).skip(1));
 
         # Body should only exist if either of these headers are present.
-        with %headers<Content-Length> || %headers<Transfer-Encoding> {
+        with %headers<content-length> || %headers<transfer-encoding> {
             $body = @split_request[1] || $body;
         }
 
         # Absolute uris need their path encoded differently.
-        without %headers<Host> {
+        without %headers<host> {
             my $abs-uri = $path;
             $path = $abs-uri.match(/^'http' 's'? '://' <[A..Z a..z \w \. \- \_ 0..9]>+ <('/'.*)>? $/).Str;
-            %headers<Host> = $abs-uri.match(/^'http''s'?'://'(<-[/]>+)'/'?.* $/)[0].Str;
+            %headers<host> = $abs-uri.match(/^'http''s'?'://'(<-[/]>+)'/'?.* $/)[0].Str;
         }
 
         my %cookies;
         # Parse cookies
-        with %headers<Cookie> {
-            %cookies := Cookie.decode(%headers<Cookie>);
+        with %headers<cookie> {
+            %cookies := Cookie.decode(%headers<cookie>);
         }
 
         my $context-id = rand.Str.subst('0.', '').substr: 0, 5;
@@ -237,7 +238,7 @@ class Response is HTTPAction is export {
 
     # Redirect to a given URI, :$permanent allows for a 308 status code vs a 307
     method redirect(Str:D $to, :$permanent, :$temporary) {
-        %.headers<Location> = $to;
+        self.header('Location', $to);
         self.status(303);
 
         self.status(307) if $temporary;
@@ -275,7 +276,7 @@ class Response is HTTPAction is export {
     # Write a blob or buffer
     method blob(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
         $.body = $body;
-        %.headers<Content-Type> = $content-type;
+        self.header('Content-Type', $content-type);
         self;
     }
     # Alias for blob
@@ -285,7 +286,7 @@ class Response is HTTPAction is export {
     # Write a string to the body of the response, optionally provide a content type
     multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response:D) {
         $.body = $body;
-        %.headers<Content-Type> = $content-type;
+        self.header('Content-Type', $content-type);
         self;
     }
     multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response:D) {
@@ -296,7 +297,7 @@ class Response is HTTPAction is export {
 
     # Set content type of the response
     method content-type(Str:D $type --> Response) {
-        %.headers<Content-Type> = $type;
+        self.header('Content-Type', $type);
         self;
     }
 
@@ -305,8 +306,8 @@ class Response is HTTPAction is export {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
         my $body-size = $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars;
 
-        if $body-size > 0 && %.headers<Content-Type> {
-            %.headers<Content-Type> ~= '; charset=utf8';
+        if $body-size > 0 && self.header('Content-Type') && self.header('Content-Type') !~~ /.*'octet-stream'.*/ {
+            %.headers<content-type> ~= '; charset=utf8';
         }
 
         $out ~= sprintf("Content-Length: %d\r\n", $body-size);
