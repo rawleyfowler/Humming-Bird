@@ -12,8 +12,9 @@ Humming-Bird was inspired mainly by [Sinatra](https://sinatrarb.com), and [Expre
 things minimal, allowing the user to pull in things like templating engines, and ORM's on their own terms.
 
 ## Features
-Humming-Bird has 2 simple layers, at its core we have `Humming-Bird::HTTPServer` which handles all of the low-level HTTP bits. Then you have the
-routing stack that handles: routing, middleware, error handling, cookies, etc.
+Humming-Bird has 2 simple layers, at the lowest levels we have `Humming-Bird::Glue` which is a simple "glue-like" layer for interfacing with
+`Humming-Bird::Backend`'s. 
+Then you have the routing and actual handler logic in `Humming-Bird::Core` that handles: routing, middleware, error handling, cookies, etc.
 
 - Powerful function composition based routing and application logic
     - Routers
@@ -27,6 +28,8 @@ routing stack that handles: routing, middleware, error handling, cookies, etc.
     - Request content will be converted to a Raku `Hash` if possible
     - Static files served have their content type infered
     - Request/Response stash's for inter-layer route talking
+
+- Swappable backends
 
 **Note**: Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as httpd or NGiNX.
 
@@ -44,9 +47,9 @@ zef install Humming-Bird
 ```
 
 ## Performance
-Around ~20% faster than Ruby's `Sinatra`, and only improving as time goes on!
 
-See [this](https://github.com/rawleyfowler/Humming-Bird/issues/43#issuecomment-1454252501) for a more detailed performance preview.
+See [this](https://github.com/rawleyfowler/Humming-Bird/issues/43#issuecomment-1454252501) for a more detailed performance preview
+vs. Ruby's Sinatra using `Humming-Bird::Backend`.
 
 ## Examples
 
@@ -149,6 +152,20 @@ sub block-firefox($request, $response, &next) {
 get('/no-firefox', -> $request, $response {
     $response.html('You are not using Firefox!');
 }, [ &middleware-logger, &block-firefox ]);
+```
+
+#### Swappable Backends
+```
+use v6.d;
+
+use Humming-Bird::Core;
+
+get('/, -> $request, $response {
+    $response.html('This request has been logged!');
+});
+
+# Run on a different backend, assuming: 
+listen(:backend(Humming-Bird::Backend::MyBackend));
 ```
 
 More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.
