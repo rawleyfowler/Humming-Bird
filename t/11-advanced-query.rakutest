@@ -4,6 +4,7 @@ use lib 'lib';
 
 use Test;
 use Humming-Bird::Core;
+use Humming-Bird::Glue;
 
 plan 12;
 

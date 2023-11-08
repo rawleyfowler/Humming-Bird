@@ -3,10 +3,11 @@ use v6.d;
 use Test;
 
 use Humming-Bird::Core;
+use Humming-Bird::Glue;
 
 plan 3;
 
-sub custom-advice(Response $response --> Response) {
+sub custom-advice($response) {
 	return $response.write('abc');
 }
 

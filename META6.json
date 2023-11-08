@@ -19,9 +19,11 @@
 	"raku": "6.d",
 	"provides": {
 		"Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
-		"Humming-Bird::HTTPServer": "lib/Humming-Bird/HTTPServer.rakumod",
+        "Humming-Bird::Backend": "lib/Humming-Bird/Backend.rakumod",
+		"Humming-Bird::Backend::HTTPServer": "lib/Humming-Bird/Backend/HTTPServer.rakumod",
 		"Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
-		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod"
+		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod",
+        "Humming-Bird::Glue": "lib/Humming-Bird/Glue.rakumod"
 	},
 	"resources": [
 	],
@@ -42,5 +44,5 @@
 		"Test::Util::ServerPort",
 		"Cro::HTTP::Client"
 	],
-	"version": "2.2.0"
+	"version": "3.0.0"
 }
