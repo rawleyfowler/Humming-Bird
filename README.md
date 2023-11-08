@@ -14,7 +14,7 @@ things minimal, allowing the user to pull in things like templating engines, and
 ## Features
 Humming-Bird has 2 simple layers, at the lowest levels we have `Humming-Bird::Glue` which is a simple "glue-like" layer for interfacing with
 `Humming-Bird::Backend`'s. 
-Then you have the routing and actual handler logic in `Humming-Bird::Core` that handles: routing, middleware, error handling, cookies, etc.
+Then you have the actual application logic in `Humming-Bird::Core` that handles: routing, middleware, error handling, cookies, etc.
 
 - Powerful function composition based routing and application logic
     - Routers
@@ -49,7 +49,7 @@ zef install Humming-Bird
 ## Performance
 
 See [this](https://github.com/rawleyfowler/Humming-Bird/issues/43#issuecomment-1454252501) for a more detailed performance preview
-vs. Ruby's Sinatra using `Humming-Bird::Backend`.
+vs. Ruby's Sinatra using `Humming-Bird::Backend::HTTPServer`.
 
 ## Examples
 
