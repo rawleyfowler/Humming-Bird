@@ -1,5 +1,6 @@
 use v6.d;
 use Humming-Bird::Core;
+use Humming-Bird::Glue;
 use Test;
 
 plan 7;
