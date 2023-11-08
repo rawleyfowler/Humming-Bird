@@ -155,7 +155,7 @@ get('/no-firefox', -> $request, $response {
 ```
 
 #### Swappable Backends
-```
+```raku
 use v6.d;
 
 use Humming-Bird::Core;
