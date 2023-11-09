@@ -11,8 +11,7 @@
 		"MIME::Types",
         "JSON::Fast",
         "URI::Encode",
-        "UUID::V4",
-        "HTTP::MultiPartParser"
+        "UUID::V4"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",
