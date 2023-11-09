@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.0';
+our constant $VERSION = '3.0.1';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -187,26 +187,24 @@ if %loc{$request.method}.static {
 
     # If we don't support the request method on this route.
     without %loc{$request.method} {
-return METHOD-NOT-ALLOWED($request);
-}
-    
-    try {
-        # This is how we pass to error handlers.
-        CATCH {
-            when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
-            default {
-                my $err = $_;
-                with %*ENV<HUMMING_BIRD_ENV> {
-                    if .lc ~~ 'prod' | 'production' {
-                        return SERVER-ERROR($request);
-                    }
-                }
-                return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
-            }
-        }
-        
-        return %loc{$request.method}($request);
+        return METHOD-NOT-ALLOWED($request);
     }
+    
+    # This is how we pass to error handlers.
+    CATCH {
+        when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
+        default {
+            my $err = $_;
+            with %*ENV<HUMMING_BIRD_ENV> {
+                if .lc ~~ 'prod' | 'production' {
+                    return SERVER-ERROR($request);
+                }
+            }
+            return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
+        }
+    }
+    
+    return %loc{$request.method}($request);
 }
 
 sub get(Str:D $path, &callback, @middlewares = List.new) is export {

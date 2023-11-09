@@ -6,7 +6,7 @@ use Test;
 use Humming-Bird::Core;
 use Humming-Bird::Glue;
 
-plan 17;
+plan 21;
 
 my $simple_raw_request = "GET / HTTP/1.1\r\nHost: bob.com\r\n";
 my $simple_request = Request.decode($simple_raw_request);
@@ -32,22 +32,27 @@ my $body = 'aaaaaaaaaa';
 my $simple_post_raw_request = "POST / HTTP/1.1\r\nHost: bob.com\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
 my $simple_post_request = Request.decode($simple_post_raw_request);
 
-is $simple_post_request.body, $body, 'Is post body OK?';
+is $simple_post_request.header('Host'), 'bob.com';
+is $simple_post_request.header('Content-Type'), 'application/json';
+is $simple_post_request.header('Content-Length'), $body.chars;
+is $simple_post_request.method, POST;
+
+is $simple_post_request.body.decode, $body, 'Is post body OK?';
 
 my $simple_post_empty_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 0\r\nHost: bob.com\r\n\r\n";
 my $simple_post_empty_request = Request.decode($simple_post_empty_raw_request);
 
-is $simple_post_empty_request.body, '', 'Is empty post body OK?';
+is $simple_post_empty_request.body.decode, '', 'Is empty post body OK?';
 
 my $simple-absolute-uri-raw-request = "POST http://localhost/ HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
 my $simple-absolute-uri-request = Request.decode($simple-absolute-uri-raw-request);
-is $simple-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
+is $simple-absolute-uri-request.body.decode, $body, 'Is absolute URI body OK?';
 is $simple-absolute-uri-request.header('Host'), 'localhost', 'Is absolute URI host header OK?';
 is $simple-absolute-uri-request.path, '/', 'Is absolute URI path OK?';
 
 my $complex-absolute-uri-raw-request = "POST http://localhost/name/person?bob=123 HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: { $body.chars }\r\n\r\n$body";
 my $complex-absolute-uri-request = Request.decode($complex-absolute-uri-raw-request);
-is $complex-absolute-uri-request.body, $body, 'Is absolute URI body OK?';
+is $complex-absolute-uri-request.body.decode, $body, 'Is absolute URI body OK?';
 is $complex-absolute-uri-request.header('Host'), 'localhost', 'Is absolute URI host header OK?';
 is $complex-absolute-uri-request.path, '/name/person', 'Is absolute URI path OK?';
 is $complex-absolute-uri-request.query('bob'), '123', 'Is query param OK?';

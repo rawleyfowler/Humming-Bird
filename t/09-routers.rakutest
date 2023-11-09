@@ -14,9 +14,9 @@ ok $router.middleware(-> $request, $response, &next { $response.header('X-Middle
 ok $router.get('/abc', -> $request, $response { $response.write('abc') });
 ok $router.get(-> $request, $response { $response.write('123') });
 
-is routes{'/'}{'home'}{GET}(Request.new(path => '/home', method => GET, version => 'HTTP/1.1')).body, '123', 'Is root response body OK?';
+is routes{'/'}{'home'}{GET}(Request.new(path => '/home', method => GET, version => 'HTTP/1.1')).body.decode, '123', 'Is root response body OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).status, HTTP::Status(200), 'Is response status OK?';
-is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).body, 'abc', 'Is response body OK?';
+is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).body.decode, 'abc', 'Is response body OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Test'), 'abc', 'Is advice working?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Middleware'), '123', 'Is advice working?';
 

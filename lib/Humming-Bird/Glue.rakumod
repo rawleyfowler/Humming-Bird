@@ -1,5 +1,4 @@
 use HTTP::Status;
-use HTTP::MultiPartParser;
 use MIME::Types;
 use URI::Encode;
 use DateTime::Format::RFC2822;
@@ -8,7 +7,7 @@ use JSON::Fast;
 unit module Humming-Bird::Glue;
 
 my constant $rn = Buf.new("\r\n".encode);
-my constant $rnrn = Buf.new("\r\n".encode);
+my constant $rnrn = Buf.new("\r\n\r\n".encode);
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -64,13 +63,12 @@ class Cookie is export {
     }
 }
 
-my subset Body where * ~~ Buf:D | Str:D;
 class HTTPAction {
     has $.context-id;
     has %.headers;
     has %.cookies;
-    has %.stash; # The stash is never encoded or decoded. It exists purely for internal talking between middlewares, request handlers, etc.
-    has Body:D $.body is rw = "";
+    has %.stash;
+    has Buf:D $.body is rw = Buf.new;
 
     # Find a header in the action, return (Any) if not found
     multi method header(Str:D $name --> Str) {
@@ -110,7 +108,7 @@ class Request is HTTPAction is export {
     has $!content;
 
     # Attempts to parse the body to a Map or return an empty map if we can't decode it
-    subset Content where * ~~ Buf:D | Map:D;
+    subset Content where * ~~ Buf:D | Map:D | List:D;
     method content(--> Content:D) {
 
         state $prev-body = $.body;
@@ -118,7 +116,7 @@ class Request is HTTPAction is export {
         return $!content if $!content && ($prev-body eqv $.body);
         return $!content = Map.new unless self.header('Content-Type');
 
-        try {
+        {
             CATCH {
                 default {
                     warn "Encountered Error: $_;\n Failed parsing a body of type { self.header('Content-Type') }"; return ($!content = Map.new)
@@ -126,31 +124,75 @@ class Request is HTTPAction is export {
             }
 
             if self.header('Content-Type').ends-with: 'json' {
-                $!content = from-json(self.body).Map;
+                $!content = from-json($.body.decode).Map;
             } elsif self.header('Content-Type').ends-with: 'urlencoded' {
-                $!content = parse-urlencoded(self.body);
+                $!content = parse-urlencoded($.body.decode).Map;
             } elsif self.header('Content-Type').starts-with: 'multipart/form-data' {
-                my $boundary = self.header('Content-Type').match(/^'multipart/form-data; boundary='<(.*)>$/).Str.encode;
+                # Multi-part parser based on: https://github.com/croservices/cro-http/blob/master/lib/Cro/HTTP/BodyParsers.pm6
+                my $boundary = self.header('Content-Type').match(/^'multipart/form-data; boundary="'<(.*)>'"'.*$/).Str;
 
-                say self.header('Content-Type').match(/^'multipart/form-data; boundary='<(.*)>$/).Str;
+                without $boundary {
+                    die "Missing boundary parameter in for 'multipart/form-data'";
+                }
 
-                my $parser = HTTP::MultiPartParser.new(
-                    :$boundary,
-                    on_header => sub ($header) {
-                        say $header.raku;
-                    },
+                my $payload = $.body.decode('latin-1');
 
-                    on_error => sub ($error) {
-                        die $error;
-                    },
+                my $dd-boundary = "--$boundary";
+                my $start = $payload.index($dd-boundary);
+                without $start {
+                    die "Could not find starting boundary of multipart/form-data";
+                }
 
-                    on_body => sub ($chunk, $final) {
-                        say $chunk.raku, $final;
+                # Extract all the parts.
+                my $search = "\r\n$dd-boundary";
+                $payload .= substr($start + $dd-boundary.chars);
+                my @part-strs;
+                loop {
+                    last if $payload.starts-with('--');
+                    my $end-boundary-line = $payload.index("\r\n");
+                    without $end-boundary-line {
+                        die "Missing line terminator after multipart/form-data boundary";
                     }
-                );
+                    if $end-boundary-line != 0 {
+                        if $payload.substr(0, $end-boundary-line) !~~ /\h+/ {
+                            die "Unexpected text after multpart/form-data boundary " ~
+                            "('$end-boundary-line')";
+                        }
+                    }
 
-                $parser.parse(self.body);
-                $parser.finish;
+                    my $next-boundary = $payload.index($search);
+                    without $next-boundary {
+                        die "Unable to find boundary after part in multipart/form-data";
+                    }
+                    my $start = $end-boundary-line + 1;
+                    @part-strs.push($payload.substr($start, $next-boundary - $start));
+                    $payload .= substr($next-boundary + $search.chars);
+                }
+
+                my @parts;
+                for @part-strs -> $part {
+                    my ($header, $body-str) = $part.split("\r\n\r\n", 2);
+                    my %headers = decode-headers($header.trim);
+                    with %headers<content-disposition> {
+                        my $param-start = .value.index(';');
+                        my $parameters = $param-start ?? .value.substr($param-start) !! Str;
+                        without $parameters {
+                            die "Missing content-disposition parameters in multipart/form-data part";
+                        }
+
+                        my $name = $parameters.match(/.*'name='<(\w+)>';'?.*/).Str;
+                        my $filename-param = $parameters.match(/.*'filename='<(\w+)>';'?.*/);
+                        my $filename = $filename-param ?? $filename-param.value !! Str;
+                        push @parts, Map.new(
+                            :%headers, :$name, :$filename, body => Buf.new($body-str.encode)
+                        );
+                    }
+                    else {
+                        die "Missing content-disposition header in multipart/form-data part";
+                    }
+                }
+
+                $!content = @parts.List;
             }
 
             return $!content;
@@ -176,52 +218,56 @@ class Request is HTTPAction is export {
         %!query{$query_param};
     }
 
-    multi submethod decode(Str:D $raw-request --> Request:D) {
-        return Request.decode(Buf.new($raw-request.encode));
+    multi submethod decode(Str:D $payload --> Request:D) {
+        return Request.decode(Buf.new($payload.encode));
     }
-
-    multi submethod decode(Buf:D $raw-request --> Request:D) {
-        # Decode pointer
-        my $i = 0;
-
-        while ($raw-request.elems > $i + 1) {
-            ++$i;
-            last if $raw-request[$i] == $rn[0]
-                    && $raw-request[$i + 1] == $rn[1];
-        }
-
-        my $header-line = $raw-request.subbuf(0, $i).decode;
-        my ($method_raw, $path, $version) = $header-line.split(/\s/, 3, :skip-empty);
+    multi submethod decode(Buf:D $payload --> Request:D) {
+        my $binary-str = $payload.decode('latin-1');
+        my $idx = 0;
+        loop {
+            $idx++;
+            last if (($payload[$idx] == $rn[0]
+                      && $payload[$idx + 1] == $rn[1])
+                      || $idx > ($payload.bytes + 1));
+        } 
+        my ($method_raw, $path, $version) = $payload.subbuf(0, $idx).decode.chomp.split(/\s/, 3, :skip-empty);
 
         my $method = http-method-of-str($method_raw);
 
         # Find query params
         my %query;
         if uri_decode_component($path) ~~ m:g /\w+"="(<-[&]>+)/ {
-            %query = Map.new($<>.map({ .split('=', 2) }).flat);
+            %query = Map.new($<>.map({ .split('=', 2, :skip-empty) }).flat);
             $path = $path.split('?', 2)[0];
         }
 
-        my $break-point = $i + 2;
-        while ($raw-request.elems > $i + 3) {
-            ++$i;
-            last if $raw-request[$i] == $rnrn[0]
-                    && $raw-request[$i + 1] == $rnrn[1]
-                    && $raw-request[$i + 2] == $rnrn[2]
-                    && $raw-request[$i + 3] == $rnrn[3];
+        $idx += 2;
+        my $header-marker = $idx;
+        loop {
+            $idx++;
+            last if (($payload[$idx] == $rnrn[0]
+                      && $payload[$idx + 1] == $rnrn[1]
+                      && $payload[$idx + 2] == $rnrn[2]
+                      && $payload[$idx + 3] == $rnrn[3])
+                      || $idx > ($payload.bytes + 3));
         }
 
-        my $header-section = $raw-request.subbuf($break-point, $i - 1).decode;
+        my $header-section = $payload.subbuf($header-marker, $idx);
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = decode-headers($header-section.split("\r\n", :skip-empty));
+        my %headers = decode-headers($header-section.decode.split("\r\n", :skip-empty));
 
-        my $body = Buf.new;
+        $idx += 4;
         # Body should only exist if either of these headers are present.
-        with %headers<content-length> || %headers<transfer-encoding> {
-            my $len = %headers<content-length> || %headers<transfer-encoding>;
-            $body = $raw-request.subbuf($i + 3, $len - 2);
+        my $body;
+        with %headers<content-length> {
+            if ($idx + 1 < $payload.bytes) {
+                my $len = +%headers<content-length>;
+                $body = $payload.subbuf: $idx, $len + $idx;
+            }
         }
+
+        $body //= Buf.new;
 
         # Absolute uris need their path encoded differently.
         without %headers<host> {
@@ -321,14 +367,14 @@ class Response is HTTPAction is export {
     multi method write(Buf:D $body, Str:D $content-type = 'application/octet-stream', --> Response:D) {
         self.blob($body, $content-type);
     }
+
     # Write a string to the body of the response, optionally provide a content type
     multi method write(Str:D $body, Str:D $content-type = 'text/plain', --> Response:D) {
-        $.body = $body;
-        self.header('Content-Type', $content-type);
+        self.write(Buf.new($body.encode), $content-type);
         self;
     }
     multi method write(Failure $body, Str:D $content-type = 'text/plain', --> Response:D) {
-        self.write($body.Str ~ "\n" ~ $body.backtrace, $content-type);
+        self.write(Buf.new(($body.Str ~ "\n" ~ $body.backtrace).encode), $content-type);
         self.status(500);
         self;
     }
@@ -342,7 +388,7 @@ class Response is HTTPAction is export {
     # $with_body is for HEAD requests.
     method encode(Bool:D $with-body = True --> Buf:D) {
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
-        my $body-size = $.body ~~ Buf:D ?? $.body.bytes !! $.body.chars;
+        my $body-size = $.body.bytes;
 
         if $body-size > 0 && self.header('Content-Type') && self.header('Content-Type') !~~ /.*'octet-stream'.*/ {
             %.headers<content-type> ~= '; charset=utf8';
@@ -362,15 +408,7 @@ class Response is HTTPAction is export {
 
         $out ~= "\r\n";
 
-        do given $.body {
-            when Str:D {
-                my $resp = $out ~ $.body;
-                $resp.encode.Buf if $with-body;
-            }
-
-            when Buf:D {
-                ($out.encode ~ $.body).Buf if $with-body;
-            }
-        }
+        return Buf.new($out.encode).append: $.body if $with-body;
+        return $out;
     }
 }
