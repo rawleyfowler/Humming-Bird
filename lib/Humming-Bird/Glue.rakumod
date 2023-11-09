@@ -1,9 +1,14 @@
 use HTTP::Status;
+use HTTP::MultiPartParser;
 use MIME::Types;
 use URI::Encode;
 use DateTime::Format::RFC2822;
+use JSON::Fast;
 
 unit module Humming-Bird::Glue;
+
+my constant $rn = Buf.new("\r\n".encode);
+my constant $rnrn = Buf.new("\r\n".encode);
 
 # Mime type parser from MIME::Types
 my constant $mime = MIME::Types.new;
@@ -105,8 +110,8 @@ class Request is HTTPAction is export {
     has $!content;
 
     # Attempts to parse the body to a Map or return an empty map if we can't decode it
-    method content(--> Map:D) {
-        use JSON::Fast;
+    subset Content where * ~~ Buf:D | Map:D;
+    method content(--> Content:D) {
 
         state $prev-body = $.body;
         
@@ -116,7 +121,7 @@ class Request is HTTPAction is export {
         try {
             CATCH {
                 default {
-                    warn "Encountered Error: $_;\n\n Failed trying to parse a body of type { self.header('Content-Type') }"; return ($!content = Map.new)
+                    warn "Encountered Error: $_;\n Failed parsing a body of type { self.header('Content-Type') }"; return ($!content = Map.new)
                 }
             }
 
@@ -124,6 +129,28 @@ class Request is HTTPAction is export {
                 $!content = from-json(self.body).Map;
             } elsif self.header('Content-Type').ends-with: 'urlencoded' {
                 $!content = parse-urlencoded(self.body);
+            } elsif self.header('Content-Type').starts-with: 'multipart/form-data' {
+                my $boundary = self.header('Content-Type').match(/^'multipart/form-data; boundary='<(.*)>$/).Str.encode;
+
+                say self.header('Content-Type').match(/^'multipart/form-data; boundary='<(.*)>$/).Str;
+
+                my $parser = HTTP::MultiPartParser.new(
+                    :$boundary,
+                    on_header => sub ($header) {
+                        say $header.raku;
+                    },
+
+                    on_error => sub ($error) {
+                        die $error;
+                    },
+
+                    on_body => sub ($chunk, $final) {
+                        say $chunk.raku, $final;
+                    }
+                );
+
+                $parser.parse(self.body);
+                $parser.finish;
             }
 
             return $!content;
@@ -149,11 +176,22 @@ class Request is HTTPAction is export {
         %!query{$query_param};
     }
 
-    submethod decode(Str:D $raw-request --> Request:D) {
-        use URI::Encode;
-        # Example: GET /hello.html HTTP/1.1\r\n ~~~ Followed my some headers
-        my @lines = $raw-request.lines;
-        my ($method_raw, $path, $version) = @lines.head.split(/\s/, :skip-empty);
+    multi submethod decode(Str:D $raw-request --> Request:D) {
+        return Request.decode(Buf.new($raw-request.encode));
+    }
+
+    multi submethod decode(Buf:D $raw-request --> Request:D) {
+        # Decode pointer
+        my $i = 0;
+
+        while ($raw-request.elems > $i + 1) {
+            ++$i;
+            last if $raw-request[$i] == $rn[0]
+                    && $raw-request[$i + 1] == $rn[1];
+        }
+
+        my $header-line = $raw-request.subbuf(0, $i).decode;
+        my ($method_raw, $path, $version) = $header-line.split(/\s/, 3, :skip-empty);
 
         my $method = http-method-of-str($method_raw);
 
@@ -164,16 +202,25 @@ class Request is HTTPAction is export {
             $path = $path.split('?', 2)[0];
         }
 
-        # Break the request into the body portion, and the upper headers/request line portion
-        my @split_request = $raw-request.split("\r\n\r\n", 2, :skip-empty);
-        my $body = "";
+        my $break-point = $i + 2;
+        while ($raw-request.elems > $i + 3) {
+            ++$i;
+            last if $raw-request[$i] == $rnrn[0]
+                    && $raw-request[$i + 1] == $rnrn[1]
+                    && $raw-request[$i + 2] == $rnrn[2]
+                    && $raw-request[$i + 3] == $rnrn[3];
+        }
+
+        my $header-section = $raw-request.subbuf($break-point, $i - 1).decode;
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = decode-headers(@split_request[0].split("\r\n", :skip-empty).skip(1));
+        my %headers = decode-headers($header-section.split("\r\n", :skip-empty));
 
+        my $body = Buf.new;
         # Body should only exist if either of these headers are present.
         with %headers<content-length> || %headers<transfer-encoding> {
-            $body = @split_request[1] || $body;
+            my $len = %headers<content-length> || %headers<transfer-encoding>;
+            $body = $raw-request.subbuf($i + 3, $len - 2);
         }
 
         # Absolute uris need their path encoded differently.

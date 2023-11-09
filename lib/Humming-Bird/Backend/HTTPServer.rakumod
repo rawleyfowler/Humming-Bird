@@ -44,7 +44,7 @@ method !respond(&handler) {
         react {
             whenever $.requests -> $request {
                 CATCH { default { .say } }
-                my $hb-request = Humming-Bird::Glue::Request.decode($request<data>.decode);
+                my $hb-request = Humming-Bird::Glue::Request.decode($request<data>);
                 my Humming-Bird::Glue::Response $response = &handler($hb-request);
                 $request<connection><socket>.write: $response.encode;
                 $request<connection><closed> = True with $hb-request.header('keep-alive');
@@ -99,7 +99,7 @@ method !handle-request($data is rw, $index is rw, $connection) {
         }
     }
 
-    $request<data> ~= $data.subbuf($index, $content-length+4);
+    $request<data> ~= $data.subbuf($index, $content-length + 4);
     $.requests.send: $request;
 }
 

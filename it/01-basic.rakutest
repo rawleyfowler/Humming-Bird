@@ -12,7 +12,12 @@ my $body = 'abc';
 
 get('/', -> $request, $response {
 	$response.write($body);
-});
+       });
+
+my $buf = Buf.new(1,2,3,4,5);
+post('/form', -> $request, $response {
+            ok $request.content;
+        });
 
 my $port = get-unused-port;
 
@@ -28,5 +33,15 @@ lives-ok({ $response = await $client.get('/') });
 
 ok $response, 'Was response a success?';
 is (await $response.body-text), 'abc', 'Is response body OK?';
+
+lives-ok({
+$response = await $client.post: '/form',
+            content-type => 'multipart/form-data',
+            body => [
+                     name => 'foo',
+                     age => 123,
+                     
+                 ];
+});
 
 done-testing;
