@@ -6,13 +6,16 @@ use Humming-Bird::Core;
 use Test::Util::ServerPort;
 use Cro::HTTP::Client;
 
-plan 3;
-
 my $body = 'abc';
 
 get('/', -> $request, $response {
 	$response.write($body);
-});
+       });
+
+post('/form', -> $request, $response {
+            ok $request.body;
+            ok $request.content;
+        });
 
 my $port = get-unused-port;
 
@@ -28,5 +31,24 @@ lives-ok({ $response = await $client.get('/') });
 
 ok $response, 'Was response a success?';
 is (await $response.body-text), 'abc', 'Is response body OK?';
+
+# TODO: Fix this.
+#lives-ok({
+#$response = await $client.post: '/form',
+#            content-type => 'multipart/form-data',
+#            body => [
+#                     name => 'foo',
+#                     age => 123,
+#                     Cro::HTTP::Body::MultiPartFormData::Part.new(
+#                         headers => [Cro::HTTP::Header.new(
+#                                            name => 'Content-type',
+#                                            value => 'image/jpeg'
+#                                        )],
+#                         name => 'photo',
+#                         filename => 'baobao.jpg',
+#                         body-blob => slurp('t/static/baobao.jpg', :bin)
+#                     )
+#                 ];
+#});
 
 done-testing;

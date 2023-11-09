@@ -5,26 +5,26 @@ use Test;
 
 plan 7;
 
-my $request = Request.new(body => '{ "foo": "bar" }', path => '/home', method => GET, version => 'HTTP/1.1');
+my $request = Request.new(body => Buf.new('{ "foo": "bar" }'.encode), path => '/home', method => GET, version => 'HTTP/1.1');
 $request.header('Content-Type', 'application/json');
 
 is $request.content, { foo => 'bar' }, 'Is JSON content decoding OK?';
 
-$request = Request.new(body => 'bob=123&john=abc', path => '/home', method => GET, version => 'HTTP/1.1');
+$request = Request.new(body => Buf.new('bob=123&john=abc'.encode), path => '/home', method => GET, version => 'HTTP/1.1');
 $request.header('Content-Type', 'application/urlencoded');
 
 is $request.content, Map.new('bob', '123', 'john', 'abc'), 'Is urlencoded content decoding OK?';
 
-$request.body = 'tom=abc&bob=123,456,789&john=abc';
+$request.body = Buf.new('tom=abc&bob=123,456,789&john=abc'.encode);
 
 is $request.content, Map.new('tom', 'abc', 'bob' => (123,456,789), 'john', 'abc'), 'Is complex urlencoded content decoding OK?';
 
-$request.body = 'tom=abc&lob=123';
+$request.body = Buf.new('tom=abc&lob=123'.encode);
 
 is $request.content<lob>, '123', 'Is urlencoded re-evaluated on change?';
 is $request.content<tom>, 'abc', 'Is urlencoded re-evaluated on change?';
 
-$request.body = 'hyperlink=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3DxvFZjo5PgG0';
+$request.body = Buf.new('hyperlink=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3DxvFZjo5PgG0'.encode);
 
 lives-ok sub { $request.content };
 is $request.content<hyperlink>, 'https://youtube.com/watch?v=xvFZjo5PgG0';

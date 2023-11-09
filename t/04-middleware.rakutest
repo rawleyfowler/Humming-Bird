@@ -34,6 +34,6 @@ is routes{'/'}{'hello'}{'world'}{GET}.middlewares[0].raku, &middleware-logger.ra
 middleware(-> $request, $response, &next { $response.html('Foo Bar') });
 get('/foobar', -> $request, $response { $response.write('YOU CANT SEE ME') });
 my $simple_request = Request.decode: "GET /foobar HTTP/1.1\r\nHost: bob.com\r\n";
-is routes{'/'}{'foobar'}{GET}($simple_request).body, 'Foo Bar', 'Is global middleware OK?';
+is routes{'/'}{'foobar'}{GET}($simple_request).body, Buf.new('Foo Bar'.encode), 'Is global middleware OK?';
 
 done-testing;

@@ -1,29 +1,9 @@
-=begin pod
-=head1 Humming-Bird::Advice
-
-Simple advice for the Humming-Bird web-framework. Advice are end-of-cycle
-middlewares. They take a Response and return a Response.
-
-=head2 Exported advice
-
-=head3 advice-logger
-
-=for code
-    use Humming-Bird::Core;
-    use Humming-Bird::Advice;
-	advice(&advice-logger);
-
-This advice will concisely log all traffic leaving the application.
-
-=end pod
-
-use v6;
-
 use Humming-Bird::Core;
+use Humming-Bird::Glue;
 
 unit module Humming-Bird::Advice;
 
-sub advice-logger(Response:D $response --> Response:D) is export {
+sub advice-logger(Humming-Bird::Glue::Response:D $response --> Humming-Bird::Glue::Response:D) is export {
     my $log = "{ $response.status.Int } { $response.status } | { $response.initiator.path } | ";
 	$log ~= $response.header('Content-Type') ?? $response.header('Content-Type') !! "no-content";
 

@@ -44,5 +44,5 @@
 		"Test::Util::ServerPort",
 		"Cro::HTTP::Client"
 	],
-	"version": "3.0.0"
+	"version": "3.0.1"
 }
