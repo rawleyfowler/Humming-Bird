@@ -12,9 +12,10 @@ get('/', -> $request, $response {
 	$response.write($body);
        });
 
+my $content;
 post('/form', -> $request, $response {
-            ok $request.body;
-            ok $request.content;
+            $content := $request.content;
+            $response;
         });
 
 my $port = get-unused-port;
@@ -33,22 +34,31 @@ ok $response, 'Was response a success?';
 is (await $response.body-text), 'abc', 'Is response body OK?';
 
 # TODO: Fix this.
-#lives-ok({
-#$response = await $client.post: '/form',
-#            content-type => 'multipart/form-data',
-#            body => [
-#                     name => 'foo',
-#                     age => 123,
-#                     Cro::HTTP::Body::MultiPartFormData::Part.new(
-#                         headers => [Cro::HTTP::Header.new(
-#                                            name => 'Content-type',
-#                                            value => 'image/jpeg'
-#                                        )],
-#                         name => 'photo',
-#                         filename => 'baobao.jpg',
-#                         body-blob => slurp('t/static/baobao.jpg', :bin)
-#                     )
-#                 ];
-#});
+my $blob = slurp('t/static/baobao.jpg', :bin);
+lives-ok({
+$response = await $client.post: '/form',
+            content-type => 'multipart/form-data',
+            content-length => $blob.bytes,
+            body => [
+                     name => 'foo',
+                     age => 123,
+                     Cro::HTTP::Body::MultiPartFormData::Part.new(
+                         headers => [Cro::HTTP::Header.new(
+                                            name => 'Content-type',
+                                            value => 'image/jpeg'
+                                        )],
+                         name => 'photo',
+                         filename => 'baobao.jpg',
+                         body-blob => $blob
+                     )
+                 ];
+}, "Can we send the baobao?");
+
+await $response.body;
+
+ok $content.<name>, 'Is multipart param 1 good?';
+ok $content.<age>, 'Is multipart param 2 good?';
+ok $content.<baobao>, 'Is multipart param 3 (file param) good?';
+is $content.<baobao>.body, $blob, 'Is file param correct data?';
 
 done-testing;
