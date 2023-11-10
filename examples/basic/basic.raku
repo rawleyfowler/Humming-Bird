@@ -124,6 +124,16 @@ get('/session', sub ($request, $response) {
            $response.write($request.stash<session><user>.raku)
        }, [ middleware-session ]);
 
+get('/form', sub ($request, $response) {
+           $response.html('<form enctype="multipart/form-data" action="/form" method="POST"><input type="file" name="file"><input name="name"></form>');
+       });
+
+# Echo a file back to the user.
+post('/form', sub ($request, $response) {
+            my $file = $request.content.<file>.<body>;
+            $response.blob($file);
+        });
+
 # Routers
 my $router = Router.new(root => '/foo');
 $router.middleware(&middleware-logger); # Append this middleware to all proceeding routes

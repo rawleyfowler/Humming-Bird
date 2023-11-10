@@ -73,7 +73,7 @@ class HTTPAction {
     # Find a header in the action, return (Any) if not found
     multi method header(Str:D $name --> Str) {
         my $lc-name = $name.lc;
-        return Nil without %.headers{$lc-name};
+        return Str without %.headers{$lc-name};
         %.headers{$lc-name};
     }
 
@@ -129,7 +129,12 @@ class Request is HTTPAction is export {
                 $!content = parse-urlencoded($.body.decode).Map;
             } elsif self.header('Content-Type').starts-with: 'multipart/form-data' {
                 # Multi-part parser based on: https://github.com/croservices/cro-http/blob/master/lib/Cro/HTTP/BodyParsers.pm6
-                my $boundary = self.header('Content-Type').match(/^'multipart/form-data; boundary="'<(.*)>'"'.*$/).Str;
+                my $boundary = self.header('Content-Type') ~~ /.*'boundary="' <(.*)> '"' ';'?/;
+
+                # For some reason there is no standard for quotes or no quotes.
+                $boundary //= self.header('Content-Type') ~~ /.*'boundary=' <(.*)> ';'?/;
+
+                $boundary .= Str with $boundary;
 
                 without $boundary {
                     die "Missing boundary parameter in for 'multipart/form-data'";
@@ -169,30 +174,32 @@ class Request is HTTPAction is export {
                     $payload .= substr($next-boundary + $search.chars);
                 }
 
-                my @parts;
+                my %parts;
                 for @part-strs -> $part {
                     my ($header, $body-str) = $part.split("\r\n\r\n", 2);
-                    my %headers = decode-headers($header.trim);
+                    my %headers = decode-headers($header.split("\r\n", :skip-empty));
                     with %headers<content-disposition> {
-                        my $param-start = .value.index(';');
-                        my $parameters = $param-start ?? .value.substr($param-start) !! Str;
+                        my $param-start = .index(';');
+                        my $parameters = $param-start ?? .substr($param-start) !! Str;
                         without $parameters {
                             die "Missing content-disposition parameters in multipart/form-data part";
                         }
 
-                        my $name = $parameters.match(/.*'name='<(\w+)>';'?.*/).Str;
-                        my $filename-param = $parameters.match(/.*'filename='<(\w+)>';'?.*/);
-                        my $filename = $filename-param ?? $filename-param.value !! Str;
-                        push @parts, Map.new(
-                            :%headers, :$name, :$filename, body => Buf.new($body-str.encode)
-                        );
+                        my $name = $parameters.match(/'name="'<(\w+)>'";'?.*/).Str;
+                        my $filename-param = $parameters.match(/.*'filename="'<(\w+)>'";'?.*/);
+                        my $filename = $filename-param ?? $filename-param.Str !! Str;
+                        %parts{$name} = {
+                            :%headers,
+                            $filename ?? :$filename !! (),
+                            body => Buf.new($body-str.encode('latin-1'))
+                        };
                     }
                     else {
                         die "Missing content-disposition header in multipart/form-data part";
                     }
                 }
 
-                $!content = @parts.List;
+                $!content := %parts;
             }
 
             return $!content;
@@ -224,11 +231,12 @@ class Request is HTTPAction is export {
     multi submethod decode(Buf:D $payload --> Request:D) {
         my $binary-str = $payload.decode('latin-1');
         my $idx = 0;
+
         loop {
             $idx++;
             last if (($payload[$idx] == $rn[0]
                       && $payload[$idx + 1] == $rn[1])
-                      || $idx > ($payload.bytes + 1));
+                     || $idx > ($payload.bytes + 1));
         } 
         my ($method_raw, $path, $version) = $payload.subbuf(0, $idx).decode.chomp.split(/\s/, 3, :skip-empty);
 
@@ -249,13 +257,13 @@ class Request is HTTPAction is export {
                       && $payload[$idx + 1] == $rnrn[1]
                       && $payload[$idx + 2] == $rnrn[2]
                       && $payload[$idx + 3] == $rnrn[3])
-                      || $idx > ($payload.bytes + 3));
+                     || $idx > ($payload.bytes + 3));
         }
 
         my $header-section = $payload.subbuf($header-marker, $idx);
 
         # Lose the request line and parse an assoc list of headers.
-        my %headers = decode-headers($header-section.decode.split("\r\n", :skip-empty));
+        my %headers = decode-headers($header-section.decode('latin-1').split("\r\n", :skip-empty));
 
         $idx += 4;
         # Body should only exist if either of these headers are present.
@@ -263,7 +271,7 @@ class Request is HTTPAction is export {
         with %headers<content-length> {
             if ($idx + 1 < $payload.bytes) {
                 my $len = +%headers<content-length>;
-                $body = $payload.subbuf: $idx, $len + $idx;
+                $body = Buf.new: $payload[$idx..($payload.bytes - 1)].Slip;
             }
         }
 

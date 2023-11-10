@@ -28,5 +28,4 @@ $req = Request.new(path => '/', method => POST, version => 'HTTP/1.1');
 is routes{'/'}{POST}($req).header('Content-Type'), 'text/html', 'Is response header content type OK?';
 is routes{'/'}{POST}($req).body.decode, 'Hello World', 'Is response body OK?';
 
-
 # vim: expandtab shiftwidth=4
