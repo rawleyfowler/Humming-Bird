@@ -130,7 +130,7 @@ get('/form', sub ($request, $response) {
 
 # Echo a file back to the user.
 post('/form', sub ($request, $response) {
-            my $file = $request.content.<file>.body;
+            my $file = $request.content.<file>.<body>;
             $response.blob($file);
         });
 

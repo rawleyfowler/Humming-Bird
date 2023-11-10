@@ -129,8 +129,12 @@ class Request is HTTPAction is export {
                 $!content = parse-urlencoded($.body.decode).Map;
             } elsif self.header('Content-Type').starts-with: 'multipart/form-data' {
                 # Multi-part parser based on: https://github.com/croservices/cro-http/blob/master/lib/Cro/HTTP/BodyParsers.pm6
-                say self.headers.<content-type>.raku;
-                my $boundary = self.headers.<content-type>.match(/.*'boundary=\"'<(\w+)>'\"'.*/).Str;
+                my $boundary = self.header('Content-Type') ~~ /.*'boundary="' <(.*)> '"' ';'?/;
+
+                # For some reason there is no standard for quotes or no quotes.
+                $boundary //= self.header('Content-Type') ~~ /.*'boundary=' <(.*)> ';'?/;
+
+                $boundary .= Str with $boundary;
 
                 without $boundary {
                     die "Missing boundary parameter in for 'multipart/form-data'";
@@ -181,7 +185,7 @@ class Request is HTTPAction is export {
                             die "Missing content-disposition parameters in multipart/form-data part";
                         }
 
-                        my $name = $parameters.match(/.*'name="'<(\w+)>'";'?.*/).Str;
+                        my $name = $parameters.match(/'name="'<(\w+)>'";'?.*/).Str;
                         my $filename-param = $parameters.match(/.*'filename="'<(\w+)>'";'?.*/);
                         my $filename = $filename-param ?? $filename-param.Str !! Str;
                         %parts{$name} = {
