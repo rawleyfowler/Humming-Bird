@@ -160,7 +160,7 @@ use v6.d;
 
 use Humming-Bird::Core;
 
-get('/, -> $request, $response {
+get('/', -> $request, $response {
     $response.html('This request has been logged!');
 });
 
