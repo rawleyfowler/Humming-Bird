@@ -20,6 +20,7 @@ jobs:
           - "2023.09"
           - "2023.10"
           - "2022.06"
+          - "latest"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
