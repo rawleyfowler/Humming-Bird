@@ -185,8 +185,8 @@ class Request is HTTPAction is export {
                             die "Missing content-disposition parameters in multipart/form-data part";
                         }
 
-                        my $name = $parameters.match(/'name="'<(\w+)>'";'?.*/).Str;
-                        my $filename-param = $parameters.match(/.*'filename="'<(\w+)>'";'?.*/);
+                        my $name = $parameters.match(/'name="'<(<[a..z A..Z 0..9 \- _ : \.]>+)>'";'?.*/).Str;
+                        my $filename-param = $parameters.match(/.*'filename="'<(<[a..z A..Z 0..9 \- _ : \.]>+)>'";'?.*/);
                         my $filename = $filename-param ?? $filename-param.Str !! Str;
                         %parts{$name} = {
                             :%headers,
