@@ -16,7 +16,10 @@ jobs:
           - ubuntu-latest
           - macos-latest
         raku-version:
-          - 'latest'
+          - "2020.06"
+          - "2023.09"
+          - "2023.10"
+          - "2022.06"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
