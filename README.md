@@ -81,7 +81,7 @@ get('/users/:user', -> $request, $response {
     my $user = $request.param('user');
 
     if %users{$user}:exists {
-        $response.json(to-json: %users{$user});
+        $response.json(to-json %users{$user});
     } else {
         $response.status(404).html("Sorry, $user does not exist.");
     }
