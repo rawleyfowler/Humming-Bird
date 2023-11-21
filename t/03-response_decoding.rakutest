@@ -7,12 +7,15 @@ use Humming-Bird::Core;
 use Humming-Bird::Glue;
 use HTTP::Status;
 
-plan 5;
+plan 6;
 
 my $initiator = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
 my $simple_response = Response.new(:$initiator, status => HTTP::Status(200));
 
-ok $simple_response.encode, 'Does decode not die?';
+$simple_response.write('Foo');
+$simple_response.header('Content-Type', 'text/plain');
+
+ok my $simple_response_str = $simple_response.encode, 'Does decode not die?';
 
 my $simple_response_headers = Response.new(:$initiator, status => HTTP::Status(200));
 
@@ -24,5 +27,7 @@ ok $simple_response_headers.header('content-LENGTH');
 ok $simple_response_headers.encode, 'Does encode with headers not die?';
 $simple_response_headers.write('abc');
 is $simple_response_headers.encode.subbuf(*-3), Buf.new(<abc>.ords);
+
+ok $simple_response_str.decode.contains('content-type: text/plain; charset=utf-8');
 
 done-testing;

@@ -112,7 +112,7 @@ class Request is HTTPAction is export {
     method content(--> Content:D) {
 
         state $prev-body = $.body;
-        
+
         return $!content if $!content && ($prev-body eqv $.body);
         return $!content = Map.new unless self.header('Content-Type');
 
@@ -237,7 +237,7 @@ class Request is HTTPAction is export {
             last if (($payload[$idx] == $rn[0]
                       && $payload[$idx + 1] == $rn[1])
                      || $idx > ($payload.bytes + 1));
-        } 
+        }
         my ($method_raw, $path, $version) = $payload.subbuf(0, $idx).decode.chomp.split(/\s/, 3, :skip-empty);
 
         my $method = http-method-of-str($method_raw);
@@ -314,7 +314,7 @@ class Response is HTTPAction is export {
     multi method cookie(Str:D $name, Str:D $value, :$expires, :$secure) {
         my $cookie = Cookie.new(:$name, :$value, :$expires, :$secure);
         %.cookies{$name} = $cookie;
-        self;        
+        self;
     }
 
     proto method status(|) {*}
@@ -335,7 +335,7 @@ class Response is HTTPAction is export {
 
         self.status(307) if $temporary;
         self.status(308) if $permanent;
-        
+
         self;
     }
 
@@ -395,10 +395,19 @@ class Response is HTTPAction is export {
 
     # $with_body is for HEAD requests.
     method encode(Bool:D $with-body = True --> Buf:D) {
+        state @special-content-types = (
+            'application/json',
+            'application/xml',
+            'application/rss+xml',
+            'application/yaml'
+        );
         my $out = sprintf("HTTP/1.1 %d $!status\r\n", $!status.code);
         my $body-size = $.body.bytes;
 
-        if $body-size > 0 && self.header('Content-Type') && self.header('Content-Type') !~~ /.*'octet-stream'.*/ {
+        if (($body-size > 0)
+            && (@special-content-types.first(* eq self.header("Content-Type"))
+                || self.header('Content-Type').starts-with("text/")))
+        {
             %.headers<content-type> ~= '; charset=utf-8';
         }
 

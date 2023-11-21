@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.2';
+our constant $VERSION = '3.0.3';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -159,7 +159,7 @@ sub dispatch-request(Request:D $request --> Response:D) {
                 %loc := %catch-all;
                 last;
             }
-            
+
             return NOT-FOUND($request);
         } elsif $possible-param && !%loc{$uri} {
 $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
@@ -189,7 +189,7 @@ if %loc{$request.method}.static {
     without %loc{$request.method} {
         return METHOD-NOT-ALLOWED($request);
     }
-    
+
     # This is how we pass to error handlers.
     CATCH {
         when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
@@ -203,7 +203,7 @@ if %loc{$request.method}.static {
             return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
         }
     }
-    
+
     return %loc{$request.method}($request);
 }
 
@@ -233,7 +233,7 @@ sub group(@routes, @middlewares) is export {
 
 multi sub static(Str:D $path, Str:D $static-path, @middlewares = List.new) is export { static($path, $static-path.IO, @middlewares) }
 multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) is export {
-	
+
 	my sub callback(Humming-Bird::Glue::Request:D $request, Humming-Bird::Glue::Response:D $response) {
 		return $response.status(400) if $request.path.contains: '..';
 		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
