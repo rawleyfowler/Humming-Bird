@@ -399,7 +399,7 @@ class Response is HTTPAction is export {
         my $body-size = $.body.bytes;
 
         if $body-size > 0 && self.header('Content-Type') && self.header('Content-Type') !~~ /.*'octet-stream'.*/ {
-            %.headers<content-type> ~= '; charset=utf8';
+            %.headers<content-type> ~= '; charset=utf-8';
         }
 
         $out ~= sprintf("Content-Length: %d\r\n", $body-size);
