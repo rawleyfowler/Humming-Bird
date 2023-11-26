@@ -152,6 +152,8 @@ sub block-firefox($request, $response, &next) {
 get('/no-firefox', -> $request, $response {
     $response.html('You are not using Firefox!');
 }, [ &middleware-logger, &block-firefox ]);
+
+listen(8080);
 ```
 
 #### Swappable Backends
