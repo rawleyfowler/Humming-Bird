@@ -281,8 +281,8 @@ sub handle(Humming-Bird::Glue::Request:D $request) {
     return ([o] @ADVICE).(dispatch-request($request));
 }
 
-sub listen(Int:D $port, :$no-block, :$timeout = 3, :$backend = Humming-Bird::Backend::HTTPServer) is export {
-    my $server = $backend.new(:$port, :$timeout);
+sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$backend = Humming-Bird::Backend::HTTPServer) is export {
+    my $server = $backend.new(:$port, :$addr, :$timeout);
 
     say "Humming-Bird listening on port http://localhost:$port";
     if $no-block {
