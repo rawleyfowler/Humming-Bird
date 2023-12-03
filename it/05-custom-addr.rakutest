@@ -14,7 +14,7 @@ get('/', -> $request, $response {
 
 my $port = get-unused-port;
 
-listen($port, '127.0.0.3', :no-block);
+listen($port, $*DISTRO.name eq 'macos' ?? '0.0.0.0' !! '127.0.0.3', :no-block);
 
 sleep 1; # Yes, yes, I know
 
