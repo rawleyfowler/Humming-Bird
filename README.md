@@ -31,7 +31,7 @@ Then you have the actual application logic in `Humming-Bird::Core` that handles:
 
 - Swappable backends
 
-**Note**: Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as httpd or NGiNX.
+**Note**: Humming-Bird is not meant to face the internet directly. Please use a reverse proxy such as Apache, Caddy or NGiNX.
 
 ## How to install
 Make sure you have [zef](https://github.com/ugexe/zef) installed.
@@ -174,7 +174,7 @@ More examples can be found in the [examples](https://github.com/rawleyfowler/Hum
 
 ## Design
 - Humming-Bird should be easy to pickup, and simple for developers new to Raku and/or web development.
-- Humming-Bird is not designed to be exposed to the internet directly. You should hide Humming-Bird behind a reverse-proxy like NGiNX or httpd.
+- Humming-Bird is not designed to be exposed to the internet directly. You should hide Humming-Bird behind a reverse-proxy like NGiNX, Apache, or Caddy.
 - Simple and composable via middlewares.
 
 ## Things to keep in mind
