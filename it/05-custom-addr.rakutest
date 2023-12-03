@@ -13,12 +13,13 @@ get('/', -> $request, $response {
        });
 
 my $port = get-unused-port;
+my $addr = $*DISTRO.name eq 'macos' ?? '0.0.0.0' !! '127.0.0.3';
 
-listen($port, $*DISTRO.name eq 'macos' ?? '0.0.0.0' !! '127.0.0.3', :no-block);
+listen($port, $addr, :no-block);
 
-sleep 1; # Yes, yes, I know
+sleep 1;
 
-my $base-uri = "http://127.0.0.3:$port";
+my $base-uri = "http://$addr:$port";
 
 my $client = Cro::HTTP::Client.new: :$base-uri;
 my $response;
