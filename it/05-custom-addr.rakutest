@@ -1,0 +1,31 @@
+use v6;
+
+use Test;
+
+use Humming-Bird::Core;
+use Test::Util::ServerPort;
+use Cro::HTTP::Client;
+
+my $body = 'abc';
+
+get('/', -> $request, $response {
+	$response.write($body);
+       });
+
+my $port = get-unused-port;
+my $addr = $*DISTRO.name eq 'macos' ?? '0.0.0.0' !! '127.0.0.3';
+
+listen($port, $addr, :no-block);
+
+sleep 1;
+
+my $base-uri = "http://$addr:$port";
+
+my $client = Cro::HTTP::Client.new: :$base-uri;
+my $response;
+lives-ok({ $response = await $client.get('/') });
+
+ok $response, 'Was response a success?';
+is (await $response.body-text), 'abc', 'Is response body OK?';
+
+done-testing;

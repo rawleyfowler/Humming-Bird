@@ -3,6 +3,7 @@ use v6.d;
 unit role Humming-Bird::Backend;
 
 has Int:D $.port = 8080;
+has Str:D $.addr = '0.0.0.0';
 has Int:D $.timeout is required;
 
 method listen(&handler) {
