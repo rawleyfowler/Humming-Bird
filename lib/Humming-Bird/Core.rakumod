@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.3';
+our constant $VERSION = '3.0.4';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
