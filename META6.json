@@ -6,12 +6,13 @@
 	"build-depends": [
 	],
 	"depends": [
-		"HTTP::Status",
-		"DateTime::Format",
-		"MIME::Types",
-        "JSON::Fast",
-        "URI::Encode",
-        "UUID::V4"
+		"HTTP::Status:auth<zef:lizmat>",
+		"DateTime::Format:auth<zef:raku-community-modules>",
+		"MIME::Types:auth<zef:raku-community-modules>",
+        "JSON::Fast:auth<cpan:TIMOTIMO>",
+        "URI::Encode:auth<zef:raku-community-modules>",
+        "UUID::V4:auth<zef:masukomi>",
+        "Terminal::ANSIColor:auth<zef:lizmat>"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",
@@ -23,7 +24,9 @@
 		"Humming-Bird::Backend::HTTPServer": "lib/Humming-Bird/Backend/HTTPServer.rakumod",
 		"Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
 		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod",
-        "Humming-Bird::Glue": "lib/Humming-Bird/Glue.rakumod"
+        "Humming-Bird::Glue": "lib/Humming-Bird/Glue.rakumod",
+        "Humming-Bird::Plugin": "lib/Humming-Bird/Plugin.rakumod",
+        "Humming-Bird::Plugin::Config": "lib/Humming-Bird/Plugin/Config.rakumod"
 	},
 	"resources": [
 	],

@@ -1,0 +1,24 @@
+use v6;
+use lib 'lib';
+use Test;
+use Humming-Bird::Core;
+use Humming-Bird::Glue;
+use Humming-Bird::Backend;
+
+plan 4;
+
+class TestBackend does Humming-Bird::Backend {
+    method listen(&handler) {
+        return; # Does nothing
+    }
+}
+
+lives-ok sub { plugin('Config', 't/static/.humming-bird.json'); }, 'Does plugin not die?';
+lives-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register ok?';
+ok Humming-Bird::Glue::HTTPAction.^can('config'), 'Did plugin properly run?';
+
+my $action = Humming-Bird::Glue::HTTPAction.new;
+
+ok $action.config<database_url> eq 'foo', 'Did config parse properly?';
+
+done-testing;
