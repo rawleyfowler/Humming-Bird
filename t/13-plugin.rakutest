@@ -4,8 +4,10 @@ use Test;
 use Humming-Bird::Core;
 use Humming-Bird::Glue;
 use Humming-Bird::Backend;
+use Humming-Bird::Middleware;
+use Humming-Bird::Advice;
 
-plan 4;
+plan 7;
 
 class TestBackend does Humming-Bird::Backend {
     method listen(&handler) {
@@ -21,6 +23,7 @@ ok Humming-Bird::Glue::HTTPAction.^can('config'), 'Did plugin properly run?';
 my $action = Humming-Bird::Glue::HTTPAction.new;
 
 ok $action.config<database_url> eq 'foo', 'Did config parse properly?';
-is middleware
+is middleware()[0].raku, &middleware-logger.raku, 'Did logger properly setup middleware?';
+is advice()[0].raku, &advice-logger.raku, 'Did logger properly setup advice?';
 
 done-testing;

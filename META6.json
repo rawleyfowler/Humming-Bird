@@ -26,7 +26,9 @@
 		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod",
         "Humming-Bird::Glue": "lib/Humming-Bird/Glue.rakumod",
         "Humming-Bird::Plugin": "lib/Humming-Bird/Plugin.rakumod",
-        "Humming-Bird::Plugin::Config": "lib/Humming-Bird/Plugin/Config.rakumod"
+        "Humming-Bird::Plugin::Config": "lib/Humming-Bird/Plugin/Config.rakumod",
+        "Humming-Bird::Plugin::Logger": "lib/Humming-Bird/Plugin/Logger.rakumod",
+        "Humming-Bird::Plugin::Session": "lib/Humming-Bird/Plugin/Session.rakumod"
 	},
 	"resources": [
 	],

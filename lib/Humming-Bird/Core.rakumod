@@ -301,7 +301,7 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
                 require ::($fq);
                 CATCH {
                     default {
-                        die "It doesn't look like $fq is a valid plugin? Are you sure it's installed?";
+                        die "It doesn't look like $fq is a valid plugin? Are you sure it's installed? $_";
                     }
                 }
             }
