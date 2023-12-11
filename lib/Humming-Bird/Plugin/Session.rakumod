@@ -4,6 +4,6 @@ use Humming-Bird::Advice;
 
 unit class Humming-Bird::Plugin::Session does Humming-Bird::Plugin;
 
-method register($server, %routes, @middleware is rw, @advice is rw, **@args) {
-    @middleware.unshift: &middleware-session;
+method register($server, %routes, @middleware, @advice, **@args) {
+    @middleware.push: &middleware-session;
 }

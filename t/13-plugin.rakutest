@@ -7,7 +7,7 @@ use Humming-Bird::Backend;
 use Humming-Bird::Middleware;
 use Humming-Bird::Advice;
 
-plan 7;
+plan 8;
 
 class TestBackend does Humming-Bird::Backend {
     method listen(&handler) {
@@ -17,13 +17,14 @@ class TestBackend does Humming-Bird::Backend {
 
 lives-ok sub { plugin('Config', 't/static/.humming-bird.json'); }, 'Does plugin not die?';
 lives-ok sub { plugin 'Logger'; }, 'Does other plugin not die?';
+lives-ok sub { plugin 'Session'; }, 'Does other plugin not die?';
 lives-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register ok?';
 ok Humming-Bird::Glue::HTTPAction.^can('config'), 'Did plugin properly run?';
 
 my $action = Humming-Bird::Glue::HTTPAction.new;
 
 ok $action.config<database_url> eq 'foo', 'Did config parse properly?';
-is middleware()[0].raku, &middleware-logger.raku, 'Did logger properly setup middleware?';
-is advice()[0].raku, &advice-logger.raku, 'Did logger properly setup advice?';
+is middleware().elems, 2, 'Did logger properly setup middleware?';
+is advice().elems, 2, 'Did logger properly setup advice?'; # This has to be 2 because of the identity function that implicity exists
 
 done-testing;

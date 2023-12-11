@@ -39,8 +39,6 @@ is $simple_post_request.header('Content-Type'), 'application/json';
 is $simple_post_request.header('Content-Length'), $body.chars;
 is $simple_post_request.method, POST;
 
-say $simple_post_request.body.decode.raku;
-say $body.raku;
 is $simple_post_request.body.decode('latin-1'), $body, 'Is post body OK?';
 
 my $simple_post_empty_raw_request = "POST / HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 0\r\nHost: bob.com\r\n\r\n";

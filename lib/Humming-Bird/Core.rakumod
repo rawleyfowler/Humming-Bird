@@ -25,17 +25,22 @@ class Route {
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
 
-    submethod TWEAK {
-        @!middlewares.prepend: @MIDDLEWARE;
-    }
-
-    method CALL-ME(Request:D $req) {
+    method CALL-ME(Request:D $req --> Response:D) {
+        my @middlewares = [|@!middlewares, |@MIDDLEWARE, -> $a, $b, &c { &!callback($a, $b) }];
         my $res = Response.new(initiator => $req, status => HTTP::Status(200));
-        if @!middlewares.elems {
-            state &composition = @!middlewares.map({ .assuming($req, $res) }).reduce(-> &a, &b { &a({ &b }) });
-            # Finally, the main callback is added to the end of the chain
-            &composition(&!callback.assuming($req, $res));
-        } else {
+        if @middlewares.elems > 1 {
+            # For historical purposes this code will stay here, unfortunately, it was not performant enough.
+            # This code was written on the first day I started working on Humming-Bird. - RF
+            # state &comp = @middlewares.prepend(-> $re, $rp, &n { &!callback.assuming($req, $res) }).map({ $^a.raku.say; $^a.assuming($req, $res) }).reverse.reduce(-> &a, &b { &b.assuming(&a) } );
+
+            for @middlewares -> &middleware {
+                my Bool:D $next = False;
+                &middleware($req, $res, sub { $next = True } );
+                last unless $next;
+            }
+            return $res;
+        }
+        else {
             # If there is are no middlewares, just process the callback
             &!callback($req, $res);
         }
@@ -49,7 +54,7 @@ sub split_uri(Str:D $uri --> List:D) {
 
 sub delegate-route(Route:D $route, HTTPMethod:D $meth --> Route:D) {
     die 'Route cannot be empty' unless $route.path;
-    die "Invalid route: { $route.path }" unless $route.path.contains('/');
+    die "Invalid route: { $route.path }, routes must start with a '/'" unless $route.path.contains('/');
 
     my @uri_parts = split_uri($route.path);
 
@@ -70,13 +75,13 @@ class Router is export {
     has Str:D $.root is required;
     has @.routes;
     has @!middlewares;
-    has @!advice = { $^a }; # List of functions that type Response --> Response
+    has @!advice = ( { $^a } ); # List of functions that type Response --> Response
 
     method !add-route(Route:D $route, HTTPMethod:D $method --> Route:D) {
         my &advice = [o] @!advice;
         my &cb = $route.callback;
         my $r = $route.clone(path => $!root ~ $route.path,
-                             middlewares => [|@!middlewares, |$route.middlewares],
+                             middlewares => [|$route.middlewares, |@!middlewares],
                              callback => { &advice(&cb($^a, $^b)) });
         @!routes.push: $r;
         delegate-route($r, $method);
@@ -287,7 +292,8 @@ sub plugin(Str:D $plugin, **@args --> Array:D) is export {
 }
 
 sub handle(Humming-Bird::Glue::Request:D $request) {
-    return ([o] @ADVICE).(dispatch-request($request));
+    state &advice-handler = [o] @ADVICE;
+    return &advice-handler(dispatch-request($request));
 }
 
 sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$backend = Humming-Bird::Backend::HTTPServer) is export {
@@ -325,8 +331,9 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
     );
     say '';
     say(
-        colored('Warning', 'yellow underline'),
-        ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.'
+        colored('Warning', 'yellow'),
+        ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.',
+        "\n"
     ) without ($*ENV<HUMMING_BIRD_ENV>);
     if $no-block {
         start {

@@ -109,9 +109,6 @@ get('/throws-error', -> $request, $response {
 # Error handler
 error(X::AdHoc, -> $exn, $response { $response.status(500).write("Encountered an error. <br> $exn") });
 
-# After middleware, Response --> Response
-advice(&advice-logger);
-
 # Static content
 static('/static', '/var/www/static'); # Server static content on '/static', from '/var/www/static'
 
@@ -138,8 +135,6 @@ post('/form', sub ($request, $response) {
 
 # Routers
 my $router = Router.new(root => '/foo');
-$router.middleware(&middleware-logger); # Append this middleware to all proceeding routes
-$router.advice(&advice-logger); # Append this advice to all proceeding routes
 $router.get(-> $request, $response { $response.write('foo') });
 $router.post(-> $request, $response { $response.write('foo post!') });
 $router.get('/bar', -> $request, $response { $response.write('foo bar') }); # Registered on /foo/bar
