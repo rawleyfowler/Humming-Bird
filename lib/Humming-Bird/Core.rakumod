@@ -117,6 +117,10 @@ class Router is export {
         self.delete('', &callback, @middlewares);
     }
 
+    method plugin($plugin) {
+        @PLUGINS.push: $plugin;
+    }
+
     method middleware(&middleware) {
         @!middlewares.push: &middleware;
     }

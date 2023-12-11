@@ -14,11 +14,13 @@ class TestBackend does Humming-Bird::Backend {
 }
 
 lives-ok sub { plugin('Config', 't/static/.humming-bird.json'); }, 'Does plugin not die?';
+lives-ok sub { plugin 'Logger'; }, 'Does other plugin not die?';
 lives-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register ok?';
 ok Humming-Bird::Glue::HTTPAction.^can('config'), 'Did plugin properly run?';
 
 my $action = Humming-Bird::Glue::HTTPAction.new;
 
 ok $action.config<database_url> eq 'foo', 'Did config parse properly?';
+is middleware
 
 done-testing;
