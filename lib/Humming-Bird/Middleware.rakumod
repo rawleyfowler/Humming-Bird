@@ -24,7 +24,6 @@ class Session {
 sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is export {
     state Lock $lock .= new;
     state %sessions;
-    state $session-cleanup = False;
 
     sub aux(Request:D $request, Response:D $response, &next) is export {
         my $session-id = $request.cookie($SESSION-NAME).?value;
@@ -41,7 +40,6 @@ sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is ex
     }
 
     start {
-        $session-cleanup = True;
         react whenever Supply.interval(1) {
             $lock.protect({ %sessions = %sessions.grep({ ($_.value.expires - now) > 0 }) });
         }
