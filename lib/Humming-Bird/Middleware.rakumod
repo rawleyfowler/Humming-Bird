@@ -14,17 +14,16 @@ sub middleware-logger(Request:D $request, Response:D $response, &next) is export
     &next();
 }
 
-class Session {
-    has Str:D $.id = uuid-v4;
-    has Instant:D $.expires is required;
-    has %!stash handles <AT-KEY>;
-}
-
 # Defaults to 24 hour sessions
 sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is export {
+    class Session {
+        has Str:D $.id = uuid-v4;
+        has Instant:D $.expires is required;
+        has %!stash handles <AT-KEY>;
+    }
+
     state Lock $lock .= new;
     state %sessions;
-    state $session-cleanup = False;
 
     sub aux(Request:D $request, Response:D $response, &next) is export {
         my $session-id = $request.cookie($SESSION-NAME).?value;
@@ -32,20 +31,19 @@ sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is ex
             $lock.protect({ $request.stash<session> := %sessions{$session-id} });
         } else {
             my $session = Session.new(expires => now + $ttl);
-            $lock.protect({ %sessions{$session.id} = $session });
             $request.stash<session> := $session;
             $response.cookie($SESSION-NAME, $session.id, expires => DateTime.new($session.expires), :$secure);
+            $lock.protect({ %sessions{$session.id} = $session });
         }
 
         &next();
     }
 
     start {
-        $session-cleanup = True;
         react whenever Supply.interval(1) {
             $lock.protect({ %sessions = %sessions.grep({ ($_.value.expires - now) > 0 }) });
         }
-    } unless $session-cleanup;
+    };
     
     &aux;
 }

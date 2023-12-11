@@ -18,6 +18,6 @@ is routes{'/'}{'home'}{GET}(Request.new(path => '/home', method => GET, version 
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).status, HTTP::Status(200), 'Is response status OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).body.decode, 'abc', 'Is response body OK?';
 is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Test'), 'abc', 'Is advice working?';
-is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Middleware'), '123', 'Is advice working?';
+is routes{'/'}{'home'}{'abc'}{GET}(Request.new(path => '/home/abc', method => GET, version => 'HTTP/1.1')).header('X-Middleware'), '123', 'Is middleware working?';
 
 done-testing;

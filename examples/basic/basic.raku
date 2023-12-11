@@ -5,6 +5,9 @@ use Humming-Bird::Core;
 use Humming-Bird::Middleware;
 use Humming-Bird::Advice;
 
+plugin 'Config';
+plugin 'Logger';
+
 # Simple static routes
 get('/', -> $request, $response {
     $response.html('<h1>Hello World!</h1>');
@@ -39,7 +42,7 @@ get('/help.txt', -> $request, $response {
 # Simple Middleware example
 get('/logged', -> $request, $response {
     $response.html('<h1>Your request has been logged. Check the console.</h1>');
-}, [ &middleware-logger ]); # m_logger is provided by Humming-Bird::Middleware
+});
 
 
 # Custom Middleware example
@@ -53,7 +56,7 @@ sub block_firefox($request, $response, &next) {
 
 get('/firefox-not-allowed', -> $request, $response {
     $response.html('<h1>Hello Non-firefox user!</h1>');
-}, [ &middleware-logger, &block_firefox ]); # Many middlewares can be combined.
+}, [&block_firefox ]);
 
 # Grouping routes
 # group: @route_callbacks, @middleware
@@ -65,7 +68,7 @@ group([
     &get.assuming('/hello/world', -> $request, $response {
         $response.html('<h1>Hello World!</h1>');
     })
-], [ &middleware-logger, &block_firefox ]);
+], [ &block_firefox ]);
 
 
 # Simple cookie
@@ -106,10 +109,6 @@ get('/throws-error', -> $request, $response {
 # Error handler
 error(X::AdHoc, -> $exn, $response { $response.status(500).write("Encountered an error. <br> $exn") });
 
-# After middleware, Response --> Response
-advice(&advice-logger);
-
-
 # Static content
 static('/static', '/var/www/static'); # Server static content on '/static', from '/var/www/static'
 
@@ -118,11 +117,11 @@ get('/favicon.ico', sub ($request, $response) { $response.file('favicon.ico'); }
 get('/login', sub ($request, $response) {
            $request.stash<session><user> = 'foobar';
            $response.write('Logged in as foobar');
-       }, [ middleware-session ]);
+       }, [ &middleware-session ]);
 
 get('/session', sub ($request, $response) {
            $response.write($request.stash<session><user>.raku)
-       }, [ middleware-session ]);
+       }, [ &middleware-session ]);
 
 get('/form', sub ($request, $response) {
            $response.html('<form enctype="multipart/form-data" action="/form" method="POST"><input type="file" name="file"><input name="name"></form>');
@@ -136,14 +135,11 @@ post('/form', sub ($request, $response) {
 
 # Routers
 my $router = Router.new(root => '/foo');
-$router.middleware(&middleware-logger); # Append this middleware to all proceeding routes
-$router.advice(&advice-logger); # Append this advice to all proceeding routes
 $router.get(-> $request, $response { $response.write('foo') });
 $router.post(-> $request, $response { $response.write('foo post!') });
 $router.get('/bar', -> $request, $response { $response.write('foo bar') }); # Registered on /foo/bar
 
-# Run the application
-listen(9000, timeout => 3); # You can set timeout, to a value you'd like (this is how long keep-alive sockets are kept open) default is 5 seconds.
-# You can also set the :no-block adverb to stop the call from blocking, and be run on the task scheduler.
+# Run the app
+listen(9000, timeout => 3);
 
 # vim: expandtab shiftwidth=4

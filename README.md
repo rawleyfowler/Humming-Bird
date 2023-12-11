@@ -22,6 +22,7 @@ Then you have the actual application logic in `Humming-Bird::Core` that handles:
     - Middleware
     - Advice (end of stack middleware)
     - Simple global error handling
+    - Plugin system
 
 - Simple and helpful API
     - get, post, put, patch, delete, etc
@@ -100,6 +101,23 @@ post('/users', -> $request, $response {
 listen(8080);
 ```
 
+#### Using plugins
+```raku
+use v6.d;
+
+use Humming-Bird::Core;
+
+plugin 'Logger'; # Corresponds to the pre-built Humming-Bird::Plugin::Logger plugin.
+plugin 'Config'; # Corresponds to the pre-built Humming-Bird::Plugin::Config plugin.
+
+get('/', sub ($request, $response) {
+    my $database_url = $request.config<database_url>;
+    $response.html('Here's my database url :D ' ~ $database_url);
+});
+
+listen(8080);
+```
+
 #### Routers
 ```raku
 use v6.d;
@@ -112,7 +130,7 @@ use Humming-Bird::Middleware;
 # regardless of whether you're using the sub or Router process for defining routes.
 my $router = Router.new(root => '/');
 
-$router.middleware(&middleware-logger); # middleware-logger is provided by the Middleware package
+plugin 'Logger';
 
 $router.get(-> $request, $response { # Register a GET route on the root of the router
     $response.html('<h1>Hello World</h1>');
@@ -156,6 +174,8 @@ get('/no-firefox', -> $request, $response {
 listen(8080);
 ```
 
+Since Humming-Bird `3.0.4` it may be more favorable to use plugins to register global middlewares.
+
 #### Swappable Backends
 ```raku
 use v6.d;
@@ -171,6 +191,61 @@ listen(:backend(Humming-Bird::Backend::MyBackend));
 ```
 
 More examples can be found in the [examples](https://github.com/rawleyfowler/Humming-Bird/tree/main/examples) directory.
+
+## Swappable backends
+
+In Humming-Bird `3.0.0` and up you are able to write your own backend, please follow the API outlined by the `Humming-Bird::Backend` role,
+and view `Humming-Bird::Backend::HTTPServer` for an example of how to implement a Humming-Bird backend.
+
+## Plugin system
+
+Humming-Bird `3.0.4` and up features the Humming-Bird Plugin system, this is a straight forward way to extend Humming-Bird with desired functionality before the server
+starts up. All you need to do is create a class that inherits from `Humming-Bird::Plugin`, for instance `Humming-Bird::Plugin::OAuth2`, expose a single method `register` which
+takes arguments that align with the arguments specified in `Humming-Bird::Plugin.register`, for more arguments, take a slurpy at the end of your register method.
+
+Here is an example of a plugin:
+
+```raku
+use MONKEY-TYPING;
+use JSON::Fast;
+use Humming-Bird::Plugin;
+use Humming-Bird::Core;
+
+unit class Humming-Bird::Plugin::Config does Humming-Bird::Plugin;
+
+method register($server, %routes, @middleware, @advice, **@args) {
+    my $filename = @args[0] // '.humming-bird.json';
+    my %config = from-json($filename.IO.slurp // '{}');
+
+    augment class Humming-Bird::Glue::HTTPAction {
+        method config(--> Hash:D) {
+            %config;
+        }
+    }
+
+    CATCH {
+        default {
+            warn 'Failed to find or parse your ".humming-bird.json" configuration. Ensure your file is well formed, and does exist.';
+        }
+    }
+}
+```
+
+This plugin embeds a `.config` method on the base class for Humming-Bird's Request and Response classes, allowing your config to be accessed during the request/response lifecycle.
+
+Then to register it in a Humming-Bird application:
+
+```
+use Humming-Bird::Core;
+
+plugin 'Config', 'config/humming-bird.json'; # Second arg will be pushed to he **@args array in the register method.
+
+get('/', sub ($request, $response) {
+    $response.write($request.config<foo>); # Echo back the <foo> field in our JSON config.
+});
+
+listen(8080);
+```
 
 ## Design
 - Humming-Bird should be easy to pickup, and simple for developers new to Raku and/or web development.
