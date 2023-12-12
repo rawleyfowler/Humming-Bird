@@ -112,7 +112,7 @@ plugin 'Config'; # Corresponds to the pre-built Humming-Bird::Plugin::Config plu
 
 get('/', sub ($request, $response) {
     my $database_url = $request.config<database_url>;
-    $response.html('Here's my database url :D ' ~ $database_url);
+    $response.html("Here's my database url :D " ~ $database_url);
 });
 
 listen(8080);
