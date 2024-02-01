@@ -327,7 +327,7 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
 
     say(
         colored('Humming-Bird', 'green'),
-        " listening on port http://localhost:$port"
+        " listening on port http://$addr:$port"
     );
     say '';
     say(
