@@ -9,6 +9,8 @@ use Humming-Bird::Advice;
 
 my \DBIish = try "use DBIish; DBIish".EVAL;
 
+plan 9;
+
 if DBIish ~~ Nil {
     skip-rest;
     exit;
