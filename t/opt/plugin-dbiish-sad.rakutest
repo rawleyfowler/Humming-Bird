@@ -12,6 +12,7 @@ my \DBIish = try "use DBIish; DBIish".EVAL;
 
 if DBIish ~~ Nil {
     skip-rest;
+    exit;
 }
 
 class TestBackend does Humming-Bird::Backend {
