@@ -8,18 +8,7 @@ use Humming-Bird::Middleware;
 use Humming-Bird::Advice;
 use Humming-Bird::Plugin::DBIish;
 
-try {
-    require ::('DBIish');
-
-    CATCH {
-        default {
-            warn 'DBIish not installed, skipping Humming-Bird::Plugin::DBIish tests.';
-            skip-rest;
-        }
-    }
-}
-
-use DBDish::TestMock::Connection;
+my \DBIish = try "use DBIish; DBIish".EVAL;
 
 class TestBackend does Humming-Bird::Backend {
     method listen(&handler) {
@@ -32,10 +21,9 @@ lives-ok sub { plugin('DBIish', 'other-db', ['TestMock']); }, 'Does other-db plu
 lives-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register ok?';
 ok Humming-Bird::Glue::HTTPAction.^can('db'), 'Did plugin properly run?';
 my $action = Humming-Bird::Glue::HTTPAction.new;
-
 ok $action.^can('db')[0].($action);
 ok $action.^can('db')[0].($action, 'other-db');
-ok $action.^can('db')[0].($action).isa(DBDish::TestMock::Connection);
-ok $action.^can('db')[0].($action, 'other-db').isa(DBDish::TestMock::Connection);
+is $action.^can('db')[0].($action).^name.Str, "DBDish::TestMock::Connection";
+is $action.^can('db')[0].($action, 'other-db').^name.Str, "DBDish::TestMock::Connection";
 
 done-testing;

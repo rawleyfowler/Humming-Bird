@@ -42,7 +42,7 @@ method register($server, %routes, @middleware, @advice, **@args) {
         }
     }
 
-    use DBIish;
+    my \DBIish = try "use DBIish; DBIish".EVAL;
     %databases{$database-name} = DBIish.connect(|@database-args);
 
     CATCH {
