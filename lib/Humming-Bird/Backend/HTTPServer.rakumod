@@ -69,7 +69,6 @@ method listen(&handler) {
     react {
         self!timeout;
         self!respond(&handler);
-
         whenever IO::Socket::Async.listen($.addr // '0.0.0.0', $.port) -> $connection {
             my %connection-map := {
                 socket => $connection,
