@@ -307,7 +307,7 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
                 require ::($fq);
                 CATCH {
                     default {
-                        die "It doesn't look like $fq is a valid plugin? Are you sure it's installed? $_";
+                        die "It doesn't look like $fq is a valid plugin? Are you sure it's installed?\n\n$_";
                     }
                 }
             }
@@ -327,9 +327,9 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
 
     say(
         colored('Humming-Bird', 'green'),
-        " listening on port http://$addr:$port"
+        " listening on port http://$addr:$port",
+        "\n"
     );
-    say '';
     say(
         colored('Warning', 'yellow'),
         ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.',

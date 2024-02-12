@@ -28,7 +28,8 @@
         "Humming-Bird::Plugin": "lib/Humming-Bird/Plugin.rakumod",
         "Humming-Bird::Plugin::Config": "lib/Humming-Bird/Plugin/Config.rakumod",
         "Humming-Bird::Plugin::Logger": "lib/Humming-Bird/Plugin/Logger.rakumod",
-        "Humming-Bird::Plugin::Session": "lib/Humming-Bird/Plugin/Session.rakumod"
+        "Humming-Bird::Plugin::Session": "lib/Humming-Bird/Plugin/Session.rakumod",
+        "Humming-Bird::Plugin::DBIish": "lib/Humming-Bird/Plugin/DBIish.rakumod"
 	},
 	"resources": [
 	],
