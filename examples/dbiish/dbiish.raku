@@ -5,7 +5,7 @@ use JSON::Fast;
 # sqlite3 mydb.db < create-db.sql
 
 # Tell Humming-Bird::Plugin::DBIish where to look for your db.
-plugin 'DBIish', ['SQLite', :database<mydb.db>];
+plugin 'DBIish', ['SQLite', :database('mydb.db')];
 
 get '/users', sub ($request, $response) {
     my $sth = $request.db.execute(q:to/SQL/);

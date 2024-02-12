@@ -38,8 +38,11 @@ method register($server, %routes, @middleware, @advice, **@args) {
             }
         }
     }
-    
-    %databases{$database-name} = $dbiish.connect(|@database-args);
+
+    my $dh = $dbiish.install-driver(shift @database-args);
+
+    say @database-args;
+    %databases{$database-name} = $dh.connect(|%(|@database-args));
 
     CATCH {
         default {
