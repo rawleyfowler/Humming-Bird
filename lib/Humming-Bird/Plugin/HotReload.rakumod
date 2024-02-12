@@ -30,6 +30,7 @@ class Humming-Bird::Backend::HotReload does Humming-Bird::Backend {
 }
 
 method register($server is rw, %routes, @middleware, @advice, **@args) {
+    die 'Humming-Bird::Backend::HotRealod is WIP. Please do not use it yet.';
     $server = Humming-Bird::Backend::HotReload.new(backend => $server);
     CATCH {
         default {
