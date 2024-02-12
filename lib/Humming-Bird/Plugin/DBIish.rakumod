@@ -1,4 +1,4 @@
-use MONKEY-TYPING;
+use MONKEY;
 use Humming-Bird::Plugin;
 use Humming-Bird::Core;
 
@@ -7,6 +7,16 @@ unit class Humming-Bird::Plugin::DBIish does Humming-Bird::Plugin;
 my %databases;
 
 method register($server, %routes, @middleware, @advice, **@args) {
+    my $dbiish = try "use DBIish; DBIish".EVAL;
+
+    if $dbiish ~~ Nil {
+        die 'You do not have DBIish installed, please install DBIish to use Humming-Bird::Plugin::DBIish.';
+    }
+
+    if @args.elems < 1 {
+        die "Invalid configuration for Humming-Bird::Plugin::DBIish, please provide more arguments.\n\nExample: `plugin 'DBIish', ['SQLite', 'mydb.db']`";
+    }
+
     my $database-name = 'default';
     my @database-args;
 
@@ -21,19 +31,6 @@ method register($server, %routes, @middleware, @advice, **@args) {
         @database-args = |@args[1];
     }
 
-    try {
-        require ::('DBIish');
-        CATCH {
-            default {
-                die 'DBIish is not installed, to use Humming-Bird::Plugin::DBIish, please install DBIish. "zef install DBIish"'
-            }
-        }
-    }
-
-    without @database-args {
-        die 'Invalid configuration for Humming-Bird::Plugin::DBIish, please provide arguments.'
-    }
-
     if (%databases.keys.elems == 0) {
         augment class Humming-Bird::Glue::HTTPAction {
             method db(Str $database = 'default') {
@@ -41,13 +38,12 @@ method register($server, %routes, @middleware, @advice, **@args) {
             }
         }
     }
-
-    my \DBIish = try "use DBIish; DBIish".EVAL;
-    %databases{$database-name} = DBIish.connect(|@database-args);
+    
+    %databases{$database-name} = $dbiish.connect(|@database-args);
 
     CATCH {
         default {
-            die 'Failed to setup Humming-Bird::Plugin::DBIish cause: $_';
+            die "Failed to setup Humming-Bird::Plugin::DBIish cause:\n\n$_";
         }
     }
 }

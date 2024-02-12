@@ -1,0 +1,26 @@
+use v6;
+use lib 'lib';
+use Test;
+use Humming-Bird::Core;
+use Humming-Bird::Glue;
+use Humming-Bird::Backend;
+use Humming-Bird::Middleware;
+use Humming-Bird::Advice;
+use Humming-Bird::Plugin::DBIish;
+
+my \DBIish = try "use DBIish; DBIish".EVAL;
+
+if DBIish ~~ Nil {
+    skip-rest;
+}
+
+class TestBackend does Humming-Bird::Backend {
+    method listen(&handler) {
+        return; # Does nothing
+    }
+}
+
+lives-ok sub { plugin('DBIish'); }, 'Does plugin not die?';
+dies-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register die?';
+
+done-testing;
