@@ -1,0 +1,12 @@
+use v6;
+use lib 'lib';
+use Test;
+use Humming-Bird::Core;
+use Humming-Bird::Glue;
+use Humming-Bird::Backend;
+use Humming-Bird::Middleware;
+use Humming-Bird::Advice;
+
+plan 1;
+
+lives-ok { plugin 'HotReload' }, 'Does HotReload plugin live ok?';
