@@ -15,9 +15,9 @@ class TestBackend does Humming-Bird::Backend {
     }
 }
 
-lives-ok sub { plugin('Config', 't/static/.humming-bird.json'); }, 'Does plugin not die?';
-lives-ok sub { plugin 'Logger'; }, 'Does other plugin not die?';
-lives-ok sub { plugin 'Session'; }, 'Does other plugin not die?';
+lives-ok sub { plugin('Config', 't/static/.humming-bird.json'); }, 'Does Config plugin not die?';
+lives-ok sub { plugin 'Logger'; }, 'Does Logger plugin not die?';
+lives-ok sub { plugin 'Session'; }, 'Does Session plugin not die?';
 lives-ok sub { listen(8080, :backend(TestBackend)); }, 'Does plugin register ok?';
 ok Humming-Bird::Glue::HTTPAction.^can('config'), 'Did plugin properly run?';
 

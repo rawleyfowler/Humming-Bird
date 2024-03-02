@@ -17,6 +17,12 @@ my constant $RN = "\r\n".encode.Buf;
 has Channel:D $.requests .= new;
 has Lock $!lock .= new;
 has @!connections;
+has $!conn-channel;
+
+method close {
+    $_.close for @!connections; 
+    $!conn-channel.close;
+}
 
 method !timeout {
     start {
@@ -69,7 +75,8 @@ method listen(&handler) {
     react {
         self!timeout;
         self!respond(&handler);
-        whenever IO::Socket::Async.listen($.addr // '0.0.0.0', $.port) -> $connection {
+        $!conn-channel = IO::Socket::Async.listen($.addr // '0.0.0.0', $.port).Channel;
+        whenever $!conn-channel -> $connection {
             my %connection-map := {
                 socket => $connection,
                 last-active => now
