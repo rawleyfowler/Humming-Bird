@@ -17,11 +17,9 @@ my constant $RN = "\r\n".encode.Buf;
 has Channel:D $.requests .= new;
 has Lock $!lock .= new;
 has @!connections;
-has $!conn-channel;
 
 method close {
     $_.close for @!connections; 
-    $!conn-channel.close;
 }
 
 method !timeout {
@@ -72,39 +70,36 @@ method !respond(&handler) {
 }
 
 method listen(&handler) {
-    react {
-        self!timeout;
-        self!respond(&handler);
-        $!conn-channel = IO::Socket::Async.listen($.addr // '0.0.0.0', $.port).Channel;
-        whenever $!conn-channel -> $connection {
-            my %connection-map := {
-                socket => $connection,
-                last-active => now
-            }
-
-            whenever $connection.Supply: :bin -> $bytes {
-                CATCH { default { .say } }
-                %connection-map<last-active> = now;
-
-                my $header-request = False;
-                if %connection-map<request>:!exists {
-                    %connection-map<request> = Humming-Bird::Glue::Request.decode($bytes);
-                    $header-request = True;
-                }
-
-                my $hb-request = %connection-map<request>;
-                if !$header-request {
-                    $hb-request.body.append: $bytes;
-                }
-
-                my $content-length = $hb-request.header('Content-Length');
-                if (!$content-length.defined || ($hb-request.body.bytes == $content-length)) {
-                    $.requests.send: %connection-map;
-                }
-            }
-
-            CATCH { default { .say; $connection.close; %connection-map<closed> = True } }
+    self!timeout;
+    self!respond(&handler);
+    react whenever IO::Socket::Async.listen($.addr // '0.0.0.0', $.port) -> $connection {
+        my %connection-map := {
+            socket => $connection,
+            last-active => now
         }
+
+        react whenever $connection.Supply: :bin -> $bytes {
+            CATCH { default { .say } }
+            %connection-map<last-active> = now;
+
+            my $header-request = False;
+            if %connection-map<request>:!exists {
+                %connection-map<request> = Humming-Bird::Glue::Request.decode($bytes);
+                $header-request = True;
+            }
+
+            my $hb-request = %connection-map<request>;
+            if !$header-request {
+                $hb-request.body.append: $bytes;
+            }
+
+            my $content-length = $hb-request.header('Content-Length');
+            if (!$content-length.defined || ($hb-request.body.bytes == $content-length)) {
+                $.requests.send: %connection-map;
+            }
+        }
+
+        CATCH { default { .say; $connection.close; %connection-map<closed> = True } }
     }
 }
 

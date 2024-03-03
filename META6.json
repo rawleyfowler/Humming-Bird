@@ -12,7 +12,8 @@
         "JSON::Fast:auth<cpan:TIMOTIMO>",
         "URI::Encode:auth<zef:raku-community-modules>",
         "UUID::V4:auth<zef:masukomi>",
-        "Terminal::ANSIColor:auth<zef:lizmat>"
+        "Terminal::ANSIColor:auth<zef:lizmat>",
+        "File::Find:auth<zef:raku-community-modules>"
 	],
 	"description": "A simple and composable web applications framework.",
 	"license": "MIT",
