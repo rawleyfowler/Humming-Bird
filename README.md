@@ -235,7 +235,7 @@ This plugin embeds a `.config` method on the base class for Humming-Bird's Reque
 
 Then to register it in a Humming-Bird application:
 
-```
+```raku
 use Humming-Bird::Core;
 
 plugin 'Config', 'config/humming-bird.json'; # Second arg will be pushed to he **@args array in the register method.
