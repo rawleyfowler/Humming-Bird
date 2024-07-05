@@ -26,7 +26,7 @@ Then you have the actual application logic in `Humming-Bird::Core` that handles:
 
 - Simple and helpful API
     - get, post, put, patch, delete, etc
-    - Request content will be converted to a Raku `Hash` if possible
+    - Request content will be converted to the appropriate Raku data-type if possible
     - Static files served have their content type infered
     - Request/Response stash's for inter-layer route talking
 
