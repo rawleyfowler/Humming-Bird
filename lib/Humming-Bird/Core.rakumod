@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.5';
+our constant $VERSION = '3.0.6';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -292,8 +292,13 @@ sub plugin(Str:D $plugin, **@args --> Array:D) is export {
 }
 
 sub handle(Humming-Bird::Glue::Request:D $request) {
-    state &advice-handler = [o] @ADVICE;
-    return &advice-handler(dispatch-request($request));
+    my $response = dispatch-request($request);
+
+    for @ADVICE -> &advice {
+        &advice($response);
+    }
+
+    return $response;
 }
 
 sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$backend = Humming-Bird::Backend::HTTPServer) is export {
@@ -330,11 +335,13 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
         " listening on port http://$addr:$port",
         "\n"
     );
+
     say(
         colored('Warning', 'yellow'),
         ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.',
         "\n"
     ) if (%*ENV<HUMMING_BIRD_ENV>:exists && (%*ENV<HUMMING_BIRD_ENV> ne 'PROD' || %*ENV<HUMMING_BIRD_ENV> ne 'PRODUCTION'));
+
     if $no-block {
         start {
             $server.listen(&handle);

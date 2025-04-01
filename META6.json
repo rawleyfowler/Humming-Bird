@@ -1,56 +1,58 @@
 {
     "auth": "zef:rawleyfowler",
-	"authors": [
-		"Rawley Fowler"
-	],
-	"build-depends": [
-	],
-	"depends": [
-		"HTTP::Status:auth<zef:lizmat>",
-		"DateTime::Format:auth<zef:raku-community-modules>",
-		"MIME::Types:auth<zef:raku-community-modules>",
+    "authors": [
+        "Rawley Fowler"
+    ],
+    "build-depends": [
+    ],
+    "depends": [
+        "HTTP::Status:auth<zef:lizmat>",
+        "DateTime::Format:auth<zef:raku-community-modules>",
+        "MIME::Types:auth<zef:raku-community-modules>",
         "JSON::Fast:auth<cpan:TIMOTIMO>",
         "URI::Encode:auth<zef:raku-community-modules>",
-        "UUID::V4:auth<zef:masukomi>",
         "Terminal::ANSIColor:auth<zef:lizmat>",
-        "File::Find:auth<zef:raku-community-modules>"
-	],
-	"description": "A simple and composable web applications framework.",
-	"license": "MIT",
-	"name": "Humming-Bird",
-	"raku": "6.d",
-	"provides": {
-		"Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
+        "File::Find:auth<zef:raku-community-modules>",
+        "HTTP::Tiny:auth<zef:jjatria>",
+        "Cro::HTTP::Client",
+        "ULID"
+    ],
+    "description": "A simple and composable web applications framework.",
+    "license": "MIT",
+    "name": "Humming-Bird",
+    "raku": "6.d",
+    "provides": {
+        "Humming-Bird::Core": "lib/Humming-Bird/Core.rakumod",
         "Humming-Bird::Backend": "lib/Humming-Bird/Backend.rakumod",
-		"Humming-Bird::Backend::HTTPServer": "lib/Humming-Bird/Backend/HTTPServer.rakumod",
-		"Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
-		"Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod",
+        "Humming-Bird::Backend::HTTPServer": "lib/Humming-Bird/Backend/HTTPServer.rakumod",
+        "Humming-Bird::Middleware": "lib/Humming-Bird/Middleware.rakumod",
+        "Humming-Bird::Advice": "lib/Humming-Bird/Advice.rakumod",
         "Humming-Bird::Glue": "lib/Humming-Bird/Glue.rakumod",
         "Humming-Bird::Plugin": "lib/Humming-Bird/Plugin.rakumod",
         "Humming-Bird::Plugin::Config": "lib/Humming-Bird/Plugin/Config.rakumod",
         "Humming-Bird::Plugin::Logger": "lib/Humming-Bird/Plugin/Logger.rakumod",
         "Humming-Bird::Plugin::Session": "lib/Humming-Bird/Plugin/Session.rakumod",
         "Humming-Bird::Plugin::DBIish": "lib/Humming-Bird/Plugin/DBIish.rakumod",
-        "Humming-Bird::Plugin::HotReload": "lib/Humming-Bird/Plugin/HotReload.rakumod"
-	},
-	"resources": [
-	],
-	"source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
-	"support": {
-		"source": "https://github.com/rawleyfowler/Humming-Bird.git"
-	},
-	"tags": [
-		"Net",
-		"Sinatra",
-		"Web",
-		"HTTP"
-	],
-	"test-depends": [
-		"Test",
-		"Test::When",
-		"Test::Notice",
-		"Test::Util::ServerPort",
-		"Cro::HTTP::Client"
-	],
-	"version": "3.0.5"
+        "Humming-Bird::Plugin::HotReload": "lib/Humming-Bird/Plugin/HotReload.rakumod",
+        "Humming-Bird::Plugin::SlapbirdAPM": "lib/Humming-Bird/Plugin/SlapbirdAPM.rakumod"
+    },
+    "resources": [
+    ],
+    "source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
+    "support": {
+        "source": "https://github.com/rawleyfowler/Humming-Bird.git"
+    },
+    "tags": [
+        "Net",
+        "Sinatra",
+        "Web",
+        "HTTP"
+    ],
+    "test-depends": [
+        "Test",
+        "Test::When",
+        "Test::Notice",
+        "Test::Util::ServerPort"
+    ],
+    "version": "3.0.6"
 }

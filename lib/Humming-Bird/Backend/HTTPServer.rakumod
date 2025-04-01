@@ -60,7 +60,7 @@ method !respond(&handler) {
                     default { .say }
                 }
                 my $hb-request = $request<request>;
-                my Humming-Bird::Glue::Response $hb-response = &handler($hb-request);
+                my Humming-Bird::Glue::Response:D $hb-response = &handler($hb-request);
                 $request<socket>.write: $hb-response.encode;
                 $request<request>:delete; # Mark this request as handled.
                 $request<closed> = False with $hb-request.header('keep-alive');

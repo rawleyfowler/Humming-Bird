@@ -2,8 +2,7 @@ use v6.d;
 
 use Humming-Bird::Core;
 use Humming-Bird::Glue;
-
-use UUID::V4;
+use ULID;
 
 unit module Humming-Bird::Middleware;
 
@@ -17,7 +16,7 @@ sub middleware-logger(Request:D $request, Response:D $response, &next) is export
 # Defaults to 24 hour sessions
 sub middleware-session(Int:D :$ttl = (3600 * 24), Bool:D :$secure = False) is export {
     class Session {
-        has Str:D $.id = uuid-v4;
+        has Str:D $.id = ulid();
         has Instant:D $.expires is required;
         has %!stash handles <AT-KEY>;
     }

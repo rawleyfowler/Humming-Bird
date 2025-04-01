@@ -297,7 +297,7 @@ class Request is HTTPAction is export {
 }
 
 class Response is HTTPAction is export {
-    has HTTP::Status $.status is required;
+    has HTTP::Status $.status = HTTP::Status(200);
     has Request:D $.initiator is required handles <context-id>;
 
     proto method cookie(|) {*}
