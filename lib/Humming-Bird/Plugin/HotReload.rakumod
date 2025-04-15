@@ -45,7 +45,7 @@ class Humming-Bird::Backend::HotReload does Humming-Bird::Backend {
                 if ($!should-refresh) {
                     self!kill-server();
                     self!start-server();
-		            say $reload-message;
+                    say $reload-message;
                     say 'File change detected, refreshing Humming-Bird...';
                     $!should-refresh = False;
                 }
