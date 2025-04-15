@@ -1,0 +1,16 @@
+use v6;
+
+use Test;
+use Humming-Bird::Core;
+plugin 'HotReload';
+
+plan 1;
+spurt "test-changes-06-hotreload", "Hamadryas";
+
+sub hotreload-pid-exists {
+	return True if $*CWD ~ '/.humming-bird.hotreload'.IO.e || '/tmp/.humming-bird.hotreload';
+	return False;
+}
+
+ok hotreload-pid-exists, 'PIDfile exists for HotReload Plugin';
+unlink "test-changes-06-hotreload";

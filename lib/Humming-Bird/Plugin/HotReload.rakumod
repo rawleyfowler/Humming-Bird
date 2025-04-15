@@ -6,7 +6,7 @@ use File::Find;
 
 unit class Humming-Bird::Plugin::HotReload does Humming-Bird::Plugin;
 
-my $temp-file = $*CWD ~ '/.humming-bird.hotreload';
+my $temp-file = '/tmp/.humming-bird.hotreload' || $*CWD ~ '/.humming-bird.hotreload';
 
 my sub find-dirs(IO::Path:D $dir) {
     slip $dir.IO, slip find :$dir, :type<dir>
@@ -37,15 +37,16 @@ class Humming-Bird::Backend::HotReload does Humming-Bird::Backend {
         self!observe();
         self!start-server();
 
-        say "\n" ~ 'Humming-Bird HotReload PID: ' ~ (await $!proc.pid) ~ "\n";
+        my $reload-message = "\n" ~ 'Humming-Bird HotReload PID: ' ~ (await $!proc.pid) ~ "\n";
 
         react {
             whenever signal(SIGINT) { $temp-file.IO.unlink; exit; }
             whenever Supply.interval(1, 2) {
                 if ($!should-refresh) {
-                    say 'File change detected, refreshing Humming-Bird...';
                     self!kill-server();
                     self!start-server();
+                    say $reload-message;
+                    say 'File change detected, refreshing Humming-Bird...';
                     $!should-refresh = False;
                 }
             }
