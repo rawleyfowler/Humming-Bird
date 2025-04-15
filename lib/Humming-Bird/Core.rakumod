@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.6';
+our constant $VERSION = '3.0.7';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -25,9 +25,12 @@ class Route {
     has &.callback is required;
     has @.middlewares; # List of functions that type Request --> Request
 
-    method CALL-ME(Request:D $req --> Response:D) {
+    method CALL-ME(Request:D $req, $tmp?) {
+        my Response:D $res = $tmp ?? $tmp !! Response.new(initiator => $req, status => HTTP::Status(200));
+
         my @middlewares = [|@!middlewares, |@MIDDLEWARE, -> $a, $b, &c { &!callback($a, $b) }];
-        my $res = Response.new(initiator => $req, status => HTTP::Status(200));
+
+        # The current route is converted to a middleware.
         if @middlewares.elems > 1 {
             # For historical purposes this code will stay here, unfortunately, it was not performant enough.
             # This code was written on the first day I started working on Humming-Bird. - RF
@@ -38,12 +41,13 @@ class Route {
                 &middleware($req, $res, sub { $next = True } );
                 last unless $next;
             }
-            return $res;
         }
         else {
             # If there is are no middlewares, just process the callback
             &!callback($req, $res);
         }
+
+        return $res;
     }
 }
 
@@ -139,23 +143,10 @@ class Router is export {
     }
 }
 
-my sub NOT-FOUND(Request:D $initiator --> Response:D) {
-    Response.new(:$initiator, status => HTTP::Status(404)).html('404 Not Found');
-}
-my sub METHOD-NOT-ALLOWED(Request:D $initiator --> Response:D) {
-    Response.new(:$initiator, status => HTTP::Status(405)).html('405 Method Not Allowed');
-}
-my sub BAD-REQUEST(Request:D $initiator --> Response:D) {
-    Response.new(:$initiator, status => HTTP::Status(400)).html('400 Bad request');
-}
-my sub SERVER-ERROR(Request:D $initiator --> Response:D) {
-    Response.new(:$initiator, status => HTTP::Status(500)).html('500 Server Error');
-}
-
-sub dispatch-request(Request:D $request --> Response:D) {
+sub dispatch-request(Request:D $request, Response:D $response) {
     my @uri_parts = split_uri($request.path);
     if (@uri_parts.elems < 1) || (@uri_parts.elems == 1 && @uri_parts[0] ne '/') {
-        return BAD-REQUEST($request);
+        return $response.status(404);
     }
 
     my %loc := %ROUTES;
@@ -170,7 +161,7 @@ sub dispatch-request(Request:D $request --> Response:D) {
                 last;
             }
 
-            return NOT-FOUND($request);
+            return $response.status(404);
         } elsif $possible-param && !%loc{$uri} {
             $request.params{~$possible-param.match(/<[A..Z a..z 0..9 \- \_]>+/)} = $uri;
             %loc := %loc{$possible-param};
@@ -181,7 +172,7 @@ sub dispatch-request(Request:D $request --> Response:D) {
 		# If the route could possibly be static
         with %loc{$request.method} {
             if %loc{$request.method}.static {
-	            return %loc{$request.method}($request);
+	            return %loc{$request.method}($request, $response);
             }
         }
     }
@@ -189,32 +180,32 @@ sub dispatch-request(Request:D $request --> Response:D) {
     # For HEAD requests we should return a GET request. The decoder will delete the body
     if $request.method === HEAD {
         if %loc{GET}:exists {
-            return %loc{GET}($request);
+            return %loc{GET}($request, $response);
         } else {
-            return METHOD-NOT-ALLOWED($request);
+            return $response.status(405).html('<h1>405 Methoid Not Allowed</h1>');
         }
     }
 
     # If we don't support the request method on this route.
     without %loc{$request.method} {
-        return METHOD-NOT-ALLOWED($request);
+        return $response.status(405).html('<h1>405 Methoid Not Allowed</h1>');
     }
 
-    # This is how we pass to error handlers.
+    return %loc{$request.method}($request, $response);
+
+    # This is how we pass to error advice.
     CATCH {
-        when %ERROR{.^name}:exists { return %ERROR{.^name}($_, SERVER-ERROR($request)) }
+        when %ERROR{.^name}:exists { return %ERROR{.^name}($_, $response.status(500)) }
         default {
             my $err = $_;
             with %*ENV<HUMMING_BIRD_ENV> {
                 if .lc ~~ 'prod' | 'production' {
-                    return SERVER-ERROR($request);
+                    return $response.status(500).html('<h1>500 Internal Server Error</h1>, Something went very wrong on our end!!');
                 }
             }
-            return SERVER-ERROR($request).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
+            return $response.status(500).html("<h1>500 Internal Server Error</h1><br><i> $err <br> { $err.backtrace.nice } </i>");
         }
     }
-
-    return %loc{$request.method}($request);
 }
 
 sub get(Str:D $path, &callback, @middlewares = List.new) is export {
@@ -249,7 +240,7 @@ multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) 
 		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
         my $file = $static-path.add($request.path.substr: $cut-size, $request.path.chars);
 
-        return NOT-FOUND($request) unless $file.e;
+        return $response.status(404) unless $file.e;
 
 		$response.file(~$file);
 	}
@@ -292,7 +283,8 @@ sub plugin(Str:D $plugin, **@args --> Array:D) is export {
 }
 
 sub handle(Humming-Bird::Glue::Request:D $request) {
-    my $response = dispatch-request($request);
+    my $response = Response.new(initiator => $request, status => HTTP::Status(200));
+    dispatch-request($request, $response);
 
     for @ADVICE -> &advice {
         &advice($response);

@@ -9,14 +9,19 @@ use Cro::HTTP::Client;
 my $body = 'abc';
 
 get('/', -> $request, $response {
-	$response.write($body);
-       });
+    $response.write($body);
+});
 
 my $content;
 post('/form', -> $request, $response {
-            $content := $request.content;
-            $response;
-        });
+    $content := $request.content;
+    $response;
+});
+
+get('/saytest', -> $request, $response {
+    $response.status(201);
+    say "FOO!";
+});
 
 my $port = get-unused-port;
 
@@ -33,25 +38,30 @@ lives-ok({ $response = await $client.get('/') });
 ok $response, 'Was response a success?';
 is (await $response.body-text), 'abc', 'Is response body OK?';
 
+lives-ok({ $response = await $client.get('/saytest') });
+
+ok $response, 'Was saytest response a success?';
+is $response.status, 201, 'Was saytest response code correct?';
+
 # TODO: Fix this.
 my $blob = slurp('t/static/baobao.jpg', :bin);
 lives-ok({
-$response = await $client.post: '/form',
-            content-type => 'multipart/form-data',
-            content-length => $blob.bytes,
-            body => [
-                     name => 'foo',
-                     age => 123,
-                     Cro::HTTP::Body::MultiPartFormData::Part.new(
-                         headers => [Cro::HTTP::Header.new(
-                                            name => 'Content-type',
-                                            value => 'image/jpeg'
-                                        )],
-                         name => 'photo',
-                         filename => 'baobao.jpg',
-                         body-blob => $blob
-                     )
-                 ];
+    $response = await $client.post: '/form',
+    content-type => 'multipart/form-data',
+    content-length => $blob.bytes,
+    body => [
+        name => 'foo',
+        age => 123,
+        Cro::HTTP::Body::MultiPartFormData::Part.new(
+            headers => [Cro::HTTP::Header.new(
+                name => 'Content-type',
+                value => 'image/jpeg'
+            )],
+            name => 'photo',
+            filename => 'baobao.jpg',
+            body-blob => $blob
+        )
+    ];
 }, "Can we send the baobao?");
 
 await $response.body;

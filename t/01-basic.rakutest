@@ -4,6 +4,8 @@ use strict;
 use Test;
 use Humming-Bird::Core;
 use Humming-Bird::Glue;
+use lib 't/lib';
+use Humming-Bird::Test;
 
 plan 8;
 
@@ -16,16 +18,16 @@ get('/', &cb);
 is routes{'/'}{GET}.path, '/', 'Is route path OK?';
 is routes{'/'}{GET}.callback.raku, &cb.raku, 'Is callback OK?';
 
-my $req = Request.new(path => '/', method => GET, version => 'HTTP/1.1');
-is routes{'/'}{GET}($req).header('Content-Type'), 'text/html', 'Is response header content type OK?';
-is routes{'/'}{GET}($req).body.decode, 'Hello World', 'Is response body OK?';
+my @context = get-context(path => '/', method => GET, version => 'HTTP/1.1');
+is routes{'/'}{GET}(|@context).header('Content-Type'), 'text/html', 'Is response header content type OK?';
+is routes{'/'}{GET}(|@context).body.decode, 'Hello World', 'Is response body OK?';
 
 post('/', &cb);
 is routes{'/'}{POST}.path, '/', 'Is route path OK?';
 is routes{'/'}{POST}.callback.raku, &cb.raku, 'Is callback OK?';
 
-$req = Request.new(path => '/', method => POST, version => 'HTTP/1.1');
-is routes{'/'}{POST}($req).header('Content-Type'), 'text/html', 'Is response header content type OK?';
-is routes{'/'}{POST}($req).body.decode, 'Hello World', 'Is response body OK?';
+@context = get-context(path => '/', method => POST, version => 'HTTP/1.1');
+is routes{'/'}{POST}(|@context).header('Content-Type'), 'text/html', 'Is response header content type OK?';
+is routes{'/'}{POST}(|@context).body.decode, 'Hello World', 'Is response body OK?';
 
 # vim: expandtab shiftwidth=4
