@@ -6,7 +6,7 @@ use File::Find;
 
 unit class Humming-Bird::Plugin::HotReload does Humming-Bird::Plugin;
 
-my $temp-file = $*CWD ~ '/.humming-bird.hotreload';
+my $temp-file = '/tmp/.humming-bird.hotreload' || $*CWD ~ '/.humming-bird.hotreload';
 
 my sub find-dirs(IO::Path:D $dir) {
     slip $dir.IO, slip find :$dir, :type<dir>
