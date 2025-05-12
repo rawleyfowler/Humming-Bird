@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '3.0.7';
+our constant $VERSION = '4.0.0';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -182,13 +182,13 @@ sub dispatch-request(Request:D $request, Response:D $response) {
         if %loc{GET}:exists {
             return %loc{GET}($request, $response);
         } else {
-            return $response.status(405).html('<h1>405 Methoid Not Allowed</h1>');
+            return $response.status(405).html('<h1>405 Method Not Allowed</h1>');
         }
     }
 
     # If we don't support the request method on this route.
     without %loc{$request.method} {
-        return $response.status(405).html('<h1>405 Methoid Not Allowed</h1>');
+        return $response.status(405).html('<h1>405 Method Not Allowed</h1>');
     }
 
     return %loc{$request.method}($request, $response);
@@ -308,10 +308,19 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
                     }
                 }
             }
+
             use MONKEY;
             my $instance;
             EVAL "use $fq; \$instance = $fq.new;";
-            $instance.register($server, %ROUTES, @MIDDLEWARE, @ADVICE, |@args);
+            my Any $mutations = $instance.register($server, %ROUTES, @MIDDLEWARE, @ADVICE, |@args);
+
+            if $mutations ~~ Hash {
+                for $mutations.keys -> $mutation {
+                    my &method = $mutations{$mutation};
+                    Humming-Bird::Glue::HTTPAction.^add_method($mutation, &method);
+                }
+            }
+
             say "Plugin: $fq ", colored('✓', 'green');
 
             CATCH {
@@ -332,7 +341,7 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
         colored('Warning', 'yellow'),
         ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.',
         "\n"
-    ) if (%*ENV<HUMMING_BIRD_ENV>:exists && (%*ENV<HUMMING_BIRD_ENV> ne 'PROD' || %*ENV<HUMMING_BIRD_ENV> ne 'PRODUCTION'));
+    ) if (%*ENV<HUMMING_BIRD_ENV>:exists && (%*ENV<HUMMING_BIRD_ENV>.Str.lc ne 'PROD' || %*ENV<HUMMING_BIRD_ENV>.Str.lc ne 'PRODUCTION'));
 
     if $no-block {
         start {

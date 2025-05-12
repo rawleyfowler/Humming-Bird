@@ -31,17 +31,20 @@ method register($server, %routes, @middleware, @advice, **@args) {
         @database-args = |@args[1];
     }
 
+    my %ret;
     if (%databases.keys.elems == 0) {
-        augment class Humming-Bird::Glue::HTTPAction {
-            method db(Str $database = 'default') {
+        %ret = (
+            db => sub db(Humming-Bird::Glue::HTTPAction $a, Str $database = 'default') {
                 %databases{$database};
             }
-        }
+        );
     }
 
     my $dh = $dbiish.install-driver(shift @database-args);
 
     %databases{$database-name} = $dh.connect(|%(|@database-args));
+
+    return %ret;
 
     CATCH {
         default {

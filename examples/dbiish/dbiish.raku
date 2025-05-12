@@ -6,12 +6,22 @@ use JSON::Fast;
 
 # Tell Humming-Bird::Plugin::DBIish where to look for your db.
 plugin 'DBIish', ['SQLite', :database('mydb.db')];
+plugin 'Config';
 
 get '/users', sub ($request, $response) {
     my $sth = $request.db.execute(q:to/SQL/);
     SELECT * FROM users
     SQL
     my $json = to-json($sth.allrows(:array-of-hash));
+    return $response.json($json);
+}
+
+get '/time', sub ($request, $response) {
+    my $sth = $request.db.execute(q:to/SQL/);
+    SELECT TIME() as time;
+    SQL
+    my $json = to-json($sth.allrows(:array-of-hash)[0]);
+    $request.config;
     return $response.json($json);
 }
 

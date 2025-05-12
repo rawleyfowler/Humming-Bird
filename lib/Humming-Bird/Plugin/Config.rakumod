@@ -1,5 +1,4 @@
 use JSON::Fast;
-use MONKEY-TYPING;
 use Humming-Bird::Plugin;
 use Humming-Bird::Core;
 
@@ -9,11 +8,9 @@ method register($server, %routes, @middleware, @advice, **@args) {
     my $filename = @args[0] // '.humming-bird.json';
     my %config = from-json($filename.IO.slurp // '{}');
 
-    augment class Humming-Bird::Glue::HTTPAction {
-        method config(--> Hash:D) {
-            %config;
-        }
-    }
+    return %(
+        config => sub (Humming-Bird::Glue::HTTPAction $a) { %config }
+    );
 
     CATCH {
         default {

@@ -199,14 +199,17 @@ and view `Humming-Bird::Backend::HTTPServer` for an example of how to implement 
 
 ## Plugin system
 
-Humming-Bird `3.0.4` and up features the Humming-Bird Plugin system, this is a straight forward way to extend Humming-Bird with desired functionality before the server
-starts up. All you need to do is create a class that inherits from `Humming-Bird::Plugin`, for instance `Humming-Bird::Plugin::OAuth2`, expose a single method `register` which
+Humming-Bird `3.0.4` (`4.0.0` created a breaking change for plugins) and up features the Humming-Bird Plugin system, this is a straight forward way to extend Humming-Bird with desired functionality before the server
+starts up. All you need to do is create a class that inherits from `Humming-Bird::Plugin`, for instance `Humming-Bird::Plugin::Config`, expose a single method `register` which
 takes arguments that align with the arguments specified in `Humming-Bird::Plugin.register`, for more arguments, take a slurpy at the end of your register method.
+
+If the return value of a `Humming-Bird::Plugin.register` is a `Hash`, Humming-Bird will assume that you
+are returning helpers from your plugin, meaning the keys and values will be bound to `Humming-Bird::HTTPAction`.
+This allows you to use functionality easily in your request/response life-cycles.
 
 Here is an example of a plugin:
 
 ```raku
-use MONKEY-TYPING;
 use JSON::Fast;
 use Humming-Bird::Plugin;
 use Humming-Bird::Core;
@@ -217,11 +220,13 @@ method register($server, %routes, @middleware, @advice, **@args) {
     my $filename = @args[0] // '.humming-bird.json';
     my %config = from-json($filename.IO.slurp // '{}');
 
-    augment class Humming-Bird::Glue::HTTPAction {
-        method config(--> Hash:D) {
+    # The key will become the name, and the value will become a method on Humming-Bird::Glue::HTTPAction,
+    # allowing you to have helper methods available in your request/response life-cycle.
+    return %(
+        config => sub (Humming-Bird::Glue::HTTPAction $action) {
             %config;
         }
-    }
+    );
 
     CATCH {
         default {
