@@ -341,7 +341,7 @@ sub listen(Int:D $port, Str:D $addr = '0.0.0.0', :$no-block, :$timeout = 3, :$ba
         colored('Warning', 'yellow'),
         ': Humming-Bird is currently running in DEV mode, please set HUMMING_BIRD_ENV to PROD or PRODUCTION to enable PRODUCTION mode.',
         "\n"
-    ) if (%*ENV<HUMMING_BIRD_ENV>:exists && (%*ENV<HUMMING_BIRD_ENV>.Str.lc ne 'PROD' || %*ENV<HUMMING_BIRD_ENV>.Str.lc ne 'PRODUCTION'));
+    ) if (%*ENV<HUMMING_BIRD_ENV>:exists && %*ENV<HUMMING_BIRD_ENV>.Str.lc ~~ 'prod' | 'production');
 
     if $no-block {
         start {
