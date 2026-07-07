@@ -280,7 +280,7 @@ class Request is HTTPAction is export {
         # Absolute uris need their path encoded differently.
         without %headers<host> {
             my $abs-uri = $path;
-            $path = $abs-uri.match(/^'http' 's'? '://' <[A..Z a..z \w \. \- \_ 0..9]>+ <('/'.*)>? $/).Str;
+            $path = $abs-uri.match(/^'http' 's'? '://' <[A..Z a..z \w \. \- \_ 0..9]>+ <(['/'.*]?)> $/).Str;
             %headers<host> = $abs-uri.match(/^'http''s'?'://'(<-[/]>+)'/'?.* $/)[0].Str;
         }
 
