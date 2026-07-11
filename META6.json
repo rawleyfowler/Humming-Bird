@@ -1,10 +1,7 @@
 {
     "auth": "zef:rawleyfowler",
-    "authors": [
-        "Rawley Fowler"
-    ],
-    "build-depends": [
-    ],
+    "authors": ["Rawley Fowler"],
+    "build-depends": [],
     "depends": [
         "HTTP::Status:auth<zef:lizmat>",
         "DateTime::Format:auth<zef:raku-community-modules>",
@@ -36,23 +33,17 @@
         "Humming-Bird::Plugin::HotReload": "lib/Humming-Bird/Plugin/HotReload.rakumod",
         "Humming-Bird::Plugin::SlapbirdAPM": "lib/Humming-Bird/Plugin/SlapbirdAPM.rakumod"
     },
-    "resources": [
-    ],
+    "resources": [],
     "source-url": "https://github.com/rawleyfowler/Humming-Bird.git",
     "support": {
         "source": "https://github.com/rawleyfowler/Humming-Bird.git"
     },
-    "tags": [
-        "Net",
-        "Sinatra",
-        "Web",
-        "HTTP"
-    ],
+    "tags": ["Net", "Sinatra", "Web", "HTTP"],
     "test-depends": [
         "Test",
         "Test::When",
         "Test::Notice",
         "Test::Util::ServerPort"
     ],
-    "version": "4.0.0"
+    "version": "4.1.0"
 }

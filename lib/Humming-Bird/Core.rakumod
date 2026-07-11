@@ -7,7 +7,7 @@ use Humming-Bird::Glue;
 
 unit module Humming-Bird::Core;
 
-our constant $VERSION = '4.0.0';
+our constant $VERSION = '4.1.0';
 
 ### ROUTING SECTION
 my constant $PARAM_IDX     = ':';
@@ -85,8 +85,8 @@ class Router is export {
         my &advice = [o] @!advice;
         my &cb = $route.callback;
         my $r = $route.clone(path => $!root ~ $route.path,
-                             middlewares => [|$route.middlewares, |@!middlewares],
-                             callback => { &advice(&cb($^a, $^b)) });
+        middlewares => [|$route.middlewares, |@!middlewares],
+        callback => { &advice(&cb($^a, $^b)) });
         @!routes.push: $r;
         delegate-route($r, $method);
     }
@@ -169,10 +169,10 @@ sub dispatch-request(Request:D $request, Response:D $response) {
             %loc := %loc{$uri};
         }
 
-		# If the route could possibly be static
+        # If the route could possibly be static
         with %loc{$request.method} {
             if %loc{$request.method}.static {
-	            return %loc{$request.method}($request, $response);
+                return %loc{$request.method}($request, $response);
             }
         }
     }
@@ -235,17 +235,17 @@ sub group(@routes, @middlewares) is export {
 multi sub static(Str:D $path, Str:D $static-path, @middlewares = List.new) is export { static($path, $static-path.IO, @middlewares) }
 multi sub static(Str:D $path, IO::Path:D $static-path, @middlewares = List.new) is export {
 
-	my sub callback(Humming-Bird::Glue::Request:D $request, Humming-Bird::Glue::Response:D $response) {
-		return $response.status(400) if $request.path.contains: '..';
-		my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
+    my sub callback(Humming-Bird::Glue::Request:D $request, Humming-Bird::Glue::Response:D $response) {
+        return $response.status(400) if $request.path.contains: '..';
+        my $cut-size = $path.ends-with('/') ?? $path.chars !! $path.chars + 1;
         my $file = $static-path.add($request.path.substr: $cut-size, $request.path.chars);
 
         return $response.status(404) unless $file.e;
 
-		$response.file(~$file);
-	}
+        $response.file(~$file);
+    }
 
-	delegate-route(Route.new(:$path, :&callback, :@middlewares, :is-static), GET);
+    delegate-route(Route.new(:$path, :&callback, :@middlewares, :is-static), GET);
 }
 
 multi sub advice(--> List:D) is export {
@@ -279,7 +279,7 @@ sub routes(--> Hash:D) is export {
 }
 
 sub plugin(Str:D $plugin, **@args --> Array:D) is export {
-   @PLUGINS.push: [$plugin, @args];
+    @PLUGINS.push: [$plugin, @args];
 }
 
 sub handle(Humming-Bird::Glue::Request:D $request) {
